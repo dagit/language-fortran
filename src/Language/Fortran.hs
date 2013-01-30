@@ -18,8 +18,7 @@ module Language.Fortran where
 -- IMPORTS
 ---------------------------------------------------------------------------
 
-import Data.Dynamic   -- Typeable class and boilerplate generic functions
-import Data.Generics
+import Data.Generics -- Typeable class and boilerplate generic functions
 
 import Data.Maybe
 import Data.List

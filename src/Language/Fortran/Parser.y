@@ -7,76 +7,9 @@ import Language.Haskell.ParseMonad
 import Language.Fortran.Lexer
 import Data.Char (toLower)
 -- import GHC.Exts
-
-happyError :: P a
-happyError = parseError "syntax error"
-
-parseError :: String -> P a
-parseError m = do srcloc <- getSrcLoc 
-		  fail ("line " ++ show (srcLine srcloc) ++ " column " ++ show (srcColumn srcloc) ++ ": " ++ m ++ "\n")
-
-tokenFollows s = case alexScan ('\0',s) 0 of
-                    AlexEOF               -> "end of file"
-                    AlexError  _          -> ""
-                    AlexSkip  (_,t) len   -> tokenFollows t
-                    AlexToken (_,t) len _ -> take len s
-
-parse :: String -> [Program]
-parse p = case (runParser parser p) of 
-            (ParseOk p)       -> p
-            (ParseFailed l e) ->  error e
-
---parse :: String -> [Program]
---parse = clean . parser . fixdecls . scan
-
-parseF :: String -> IO ()
-parseF f = do s <- readFile f
-              print (parse s)
-
---scanF :: String -> IO ()
---scanF f = do s <- readFile f
---             print (scan s)
-
-fst3 (a,b,c) = a
-snd3 (a,b,c) = b
-trd3 (a,b,c) = c
-
-fst4 (a,b,c,d) = a
-snd4 (a,b,c,d) = b
-trd4 (a,b,c,d) = c
-frh4 (a,b,c,d) = d
-
-cmpNames :: SubName -> String -> String -> P SubName
-cmpNames x "" z                      = return x
-cmpNames (SubName x) y z | x==y      = return (SubName x)
-                         | otherwise = parseError (z ++ " name \""++x++"\" does not match \""++y++"\" in end " ++ z ++ " statement\n")
-cmpNames s y z                       = parseError (z ++" names do not match\n")
-					   
-isEmpty :: [a] -> Bool
-isEmpty [] = True
-isEmpty _  = False
-
--- returns one var from allocation list all var names are part of var, all but last bound also
--- last bound is allocation bounds, var needs to convert bounds to exprs
-fix_allocate :: [(VarName,[(Expr,Expr)])] -> (Expr,[(Expr,Expr)])
-fix_allocate xs = (var,bound)
-                where vs     = map (\(x,y) -> (x,map snd y)) (init xs)
-                      var    = Var (vs++[(fst (last xs),[])])
-                      bound  = snd (last xs)
-					  
-seqBound :: [(Expr,Expr)] -> Expr
-seqBound [] = ne
-seqBound [b] = toBound b
-seqBound (b:bs) = (ESeq (toBound b) (seqBound bs))
-
-toBound :: (Expr,Expr) -> Expr
-toBound (NullExpr, e) = e
-toBound (e,e') = (Bound e e')
-
-expr2array_spec (Bound e e') = (e,e')
-expr2array_spec e = (ne,e)
-
 }
+
+
 
 %name parser
 %tokentype { Token }
@@ -1601,3 +1534,73 @@ write_stmt
   : WRITE '(' io_control_spec_list ')' output_item_list  { (Write $3 $5) }
   | WRITE '(' io_control_spec_list ')'                   { (Write $3 []) }
 
+
+{
+happyError :: P a
+happyError = parseError "syntax error"
+
+parseError :: String -> P a
+parseError m = do srcloc <- getSrcLoc 
+		  fail ("line " ++ show (srcLine srcloc) ++ " column " ++ show (srcColumn srcloc) ++ ": " ++ m ++ "\n")
+
+tokenFollows s = case alexScan ('\0',s) 0 of
+                    AlexEOF               -> "end of file"
+                    AlexError  _          -> ""
+                    AlexSkip  (_,t) len   -> tokenFollows t
+                    AlexToken (_,t) len _ -> take len s
+
+parse :: String -> [Program]
+parse p = case (runParser parser p) of 
+            (ParseOk p)       -> p
+            (ParseFailed l e) ->  error e
+
+--parse :: String -> [Program]
+--parse = clean . parser . fixdecls . scan
+
+parseF :: String -> IO ()
+parseF f = do s <- readFile f
+              print (parse s)
+
+--scanF :: String -> IO ()
+--scanF f = do s <- readFile f
+--             print (scan s)
+
+fst3 (a,b,c) = a
+snd3 (a,b,c) = b
+trd3 (a,b,c) = c
+
+fst4 (a,b,c,d) = a
+snd4 (a,b,c,d) = b
+trd4 (a,b,c,d) = c
+frh4 (a,b,c,d) = d
+
+cmpNames :: SubName -> String -> String -> P SubName
+cmpNames x "" z                      = return x
+cmpNames (SubName x) y z | x==y      = return (SubName x)
+                         | otherwise = parseError (z ++ " name \""++x++"\" does not match \""++y++"\" in end " ++ z ++ " statement\n")
+cmpNames s y z                       = parseError (z ++" names do not match\n")
+					   
+isEmpty :: [a] -> Bool
+isEmpty [] = True
+isEmpty _  = False
+
+-- returns one var from allocation list all var names are part of var, all but last bound also
+-- last bound is allocation bounds, var needs to convert bounds to exprs
+fix_allocate :: [(VarName,[(Expr,Expr)])] -> (Expr,[(Expr,Expr)])
+fix_allocate xs = (var,bound)
+                where vs     = map (\(x,y) -> (x,map snd y)) (init xs)
+                      var    = Var (vs++[(fst (last xs),[])])
+                      bound  = snd (last xs)
+					  
+seqBound :: [(Expr,Expr)] -> Expr
+seqBound [] = ne
+seqBound [b] = toBound b
+seqBound (b:bs) = (ESeq (toBound b) (seqBound bs))
+
+toBound :: (Expr,Expr) -> Expr
+toBound (NullExpr, e) = e
+toBound (e,e') = (Bound e e')
+
+expr2array_spec (Bound e e') = (e,e')
+expr2array_spec e = (ne,e)
+}
