@@ -279,7 +279,6 @@ instance ShowInd Fortran where
     showInd i (Forall (is, NullExpr) f)    = (ind i)++"forall ("++showForall is++") "++show f
     showInd i (Forall (is,e)            f) = (ind i)++"forall ("++showForall is++","++show e++") "++show f
     showInd i (Goto s)                     = (ind i)++"goto "++show s
-    showInd i (IfStmt e f)                 = (ind i)++"if ("++show e++") "++show f
     showInd i (Nullify es)                 = (ind i)++"nullify "++asTuple show es++"\n"
     showInd i (Inquire ss es)              = (ind i)++"inquire "++asTuple show ss++" "++(concat (intersperse "," (map show es)))++"\n"
     showInd i (Rewind ss)                  = (ind i)++"rewind "++asTuple show ss++"\n"
