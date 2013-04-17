@@ -35,7 +35,7 @@ import Data.List
 -- 
 type ProgName  = String           -- Fortran program names
 
-data  SubName  = SubName String   -- Fortran subroutine names
+data  SubName = SubName String   -- Fortran subroutine names
                | NullSubName
                  deriving (Typeable,Data,Eq)
  
@@ -143,7 +143,6 @@ data Fortran  = Assg Expr Expr
               | Exit String
               | Forall ([(String,Expr,Expr,Expr)],Expr) Fortran
               | Goto String
-              | IfStmt Expr Fortran
               | Nullify [Expr]
               | Inquire [Spec] [Expr]
               | Rewind [Spec]
@@ -239,64 +238,61 @@ optTuple xs = asTuple show xs
 ind = indent 3 
 -- *ind = indent
 
-showInd :: Int -> Fortran -> String
-showInd i (Assg v e)               = (ind i)++show v++" = "++show e
-showInd i (For v e e' e'' f)       = (ind i)++"do"++" "++show v++" = "++show e++", "++
-                                       show e'++", "++show e''++"\n"++
-                                      (showInd (i+1) f)++"\n"++(ind i)++"end do"
-showInd i (FSeq f f')              = showInd i f++"\n"++showInd i f'
-showInd i (If e f [] Nothing)      = (ind i)++"if ("++show e++") then\n"
-                                      ++(showInd (i+1) f)++"\n"
-                                      ++(ind i)++"end if"
-showInd i (If e f [] (Just f'))    = (ind i)++"if ("++show e++") then\n"
-                                      ++(showInd (i+1) f)++"\n"
-                                      ++(ind i)++"else\n"
-                                      ++(showInd (i+1) f')++"\n"
-                                      ++(ind i)++"end if"
-showInd i (If e f elsif Nothing)    = (ind i)++"if ("++show e++") then\n"
-                                      ++(showInd (i+1) f)++"\n"
-                                      ++concat (map (showElseIf i) elsif)
-                                      ++(ind i)++"end if"
-showInd i (If e f elsif (Just f')) = (ind i)++"if ("++show e++") then\n"
-                                     ++(showInd (i+1) f)++"\n"
-                                     ++concat (map (showElseIf i) elsif)
-                                     ++(ind i)++"else\n"
-                                     ++(showInd (i+1) f')++"\n"
-                                     ++(ind i)++"end if"
-showInd i (Allocate a NullExpr)    = (ind i)++"allocate (" ++ 
-                                                           show a ++
-                                                           ")"
-showInd i (Allocate a s)              = (ind i)++"allocate ("++ 
-                                                           show a ++
-                                                           ", STAT = "++show s++
-                                                           ")"
-showInd i (Backspace ss)               = (ind i)++"backspace "++asTuple show ss++"\n"
-showInd i (Call sub al)                = ind i++"call "++show sub++show al
-showInd i (Open s)                     = (ind i)++"open "++asTuple show s++"\n"
-showInd i (Close ss)                   = (ind i)++"close "++asTuple show ss++"\n"
-showInd i (Continue)                   = (ind i)++"continue"++"\n"
-showInd i (Cycle s)                    = (ind i)++"cycle "++show s++"\n"
-showInd i (Deallocate es e)            = (ind i)++"deallocate "++asTuple show es++show e++"\n"
-showInd i (Endfile ss)                 = (ind i)++"endfile "++asTuple show ss++"\n"
-showInd i (Exit s)                     = (ind i)++"exit "++show s
-showInd i (Forall (is, NullExpr) f)    = (ind i)++"forall ("++showForall is++") "++show f
-showInd i (Forall (is,e)            f) = (ind i)++"forall ("++showForall is++","++show e++") "++show f
-showInd i (Goto s)                     = (ind i)++"goto "++show s
-showInd i (IfStmt e f)                 = (ind i)++"if ("++show e++") "++show f
-showInd i (Nullify es)                 = (ind i)++"nullify "++asTuple show es++"\n"
-showInd i (Inquire ss es)              = (ind i)++"inquire "++asTuple show ss++" "++(concat (intersperse "," (map show es)))++"\n"
-showInd i (Rewind ss)                  = (ind i)++"rewind "++asTuple show ss++"\n"
-showInd i (Stop e)                     = (ind i)++"stop "++show e++"\n"
-showInd i (Where e f)                  = (ind i)++"where ("++show e++") "++show f
-showInd i (Write ss es)                = (ind i)++"write "++asTuple show ss++" "++(concat (intersperse "," (map show es)))++"\n"
-showInd i (PointerAssg e e')           = (ind i)++show e++" => "++show e'++"\n"
-showInd i (Return e)                   = (ind i)++"return "++show e++"\n"
-showInd i (Label s f)                  = s++" "++show f
-showInd i (Print e [])                 = (ind i)++("print ")++show e++("\n")
-showInd i (Print e es)                 = (ind i)++("print ")++show e++", "++(concat (intersperse "," (map show es)))++("\n")
-showInd i (ReadS ss es)                = (ind i)++("read ")++(asTuple show ss)++" "++(concat (intersperse "," (map show es)))++("\n")
-showInd i (NullStmt)		           = ""
+class ShowInd t where
+    showInd :: Int -> t -> String
 
+instance ShowInd Fortran where
+    showInd i (Assg v e)               = (ind i)++show v++" = "++show e
+    showInd i (For v e e' e'' f)       = (ind i)++"do"++" "++show v++" = "++show e++", "++
+                                         show e'++", "++show e''++"\n"++
+                                         (showInd (i+1) f)++"\n"++(ind i)++"end do"
+    showInd i (FSeq f f')              = showInd i f++"\n"++showInd i f'
+    showInd i (If e f [] Nothing)      = (ind i)++"if ("++show e++") then\n"
+                                         ++(showInd (i+1) f)++"\n"
+                                         ++(ind i)++"end if"
+    showInd i (If e f [] (Just f'))    = (ind i)++"if ("++show e++") then\n"
+                                         ++(showInd (i+1) f)++"\n"
+                                         ++(ind i)++"else\n"
+                                         ++(showInd (i+1) f')++"\n"
+                                         ++(ind i)++"end if"
+    showInd i (If e f elsif Nothing)    = (ind i)++"if ("++show e++") then\n"
+                                          ++(showInd (i+1) f)++"\n"
+                                          ++concat (map (showElseIf i) elsif)
+                                          ++(ind i)++"end if"
+    showInd i (If e f elsif (Just f')) = (ind i)++"if ("++show e++") then\n"
+                                          ++(showInd (i+1) f)++"\n"
+                                          ++concat (map (showElseIf i) elsif)
+                                          ++(ind i)++"else\n"
+                                          ++(showInd (i+1) f')++"\n"
+                                          ++(ind i)++"end if"
+    showInd i (Allocate a NullExpr)    = (ind i)++"allocate (" ++ show a ++ ")"
+    showInd i (Allocate a s)              = (ind i)++"allocate ("++ show a ++ ", STAT = "++show s++ ")"
+    showInd i (Backspace ss)               = (ind i)++"backspace "++asTuple show ss++"\n"
+    showInd i (Call sub al)                = ind i++"call "++show sub++show al
+    showInd i (Open s)                     = (ind i)++"open "++asTuple show s++"\n"
+    showInd i (Close ss)                   = (ind i)++"close "++asTuple show ss++"\n"
+    showInd i (Continue)                   = (ind i)++"continue"++"\n"
+    showInd i (Cycle s)                    = (ind i)++"cycle "++show s++"\n"
+    showInd i (Deallocate es e)            = (ind i)++"deallocate "++asTuple show es++show e++"\n"
+    showInd i (Endfile ss)                 = (ind i)++"endfile "++asTuple show ss++"\n"
+    showInd i (Exit s)                     = (ind i)++"exit "++show s
+    showInd i (Forall (is, NullExpr) f)    = (ind i)++"forall ("++showForall is++") "++show f
+    showInd i (Forall (is,e)            f) = (ind i)++"forall ("++showForall is++","++show e++") "++show f
+    showInd i (Goto s)                     = (ind i)++"goto "++show s
+    showInd i (IfStmt e f)                 = (ind i)++"if ("++show e++") "++show f
+    showInd i (Nullify es)                 = (ind i)++"nullify "++asTuple show es++"\n"
+    showInd i (Inquire ss es)              = (ind i)++"inquire "++asTuple show ss++" "++(concat (intersperse "," (map show es)))++"\n"
+    showInd i (Rewind ss)                  = (ind i)++"rewind "++asTuple show ss++"\n"
+    showInd i (Stop e)                     = (ind i)++"stop "++show e++"\n"
+    showInd i (Where e f)                  = (ind i)++"where ("++show e++") "++show f
+    showInd i (Write ss es)                = (ind i)++"write "++asTuple show ss++" "++(concat (intersperse "," (map show es)))++"\n"
+    showInd i (PointerAssg e e')           = (ind i)++show e++" => "++show e'++"\n"
+    showInd i (Return e)                   = (ind i)++"return "++show e++"\n"
+    showInd i (Label s f)                  = s++" "++show f
+    showInd i (Print e [])                 = (ind i)++("print ")++show e++("\n")
+    showInd i (Print e es)                 = (ind i)++("print ")++show e++", "++(concat (intersperse "," (map show es)))++("\n")
+    showInd i (ReadS ss es)                = (ind i)++("read ")++(asTuple show ss)++" "++(concat (intersperse "," (map show es)))++("\n")
+    showInd i (NullStmt)		           = ""
 
 
 --showAllocate ((e,b):[]) = show e++"("++showRanges b++")" --new
