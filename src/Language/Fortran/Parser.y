@@ -283,8 +283,8 @@ module_subprogram_part
   
 internal_subprogram_list :: { [Program] }
 internal_subprogram_list
-  : internal_subprogram_list internal_subprogram    { $1++[$2] }
-  | internal_subprogram                             { [$1] }
+  : internal_subprogram_list internal_subprogram    { $1++[$2] } 
+  | {- empty -}                                     { [] }
   
 internal_subprogram :: { Program }
 internal_subprogram
