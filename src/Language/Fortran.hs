@@ -57,7 +57,7 @@ data ArgList  = ArgList Expr
                 deriving (Typeable,Data)
 
              -- Prog type   (type of result)   name      args  body    use's  
-data Program  = Main                           SubName  Arg  Block
+data Program  = Main                           SubName  Arg  Block [Program]
               | Sub        (Maybe BaseType)    SubName  Arg  Block
               | Function   (Maybe BaseType)    SubName  Arg  Block
               | Module                         SubName              [String] Implicit Decl [Program]
@@ -325,8 +325,13 @@ instance Show Program where
   show (Function Nothing n a b) = "function "++(show n)++show a++"\n"++
                              show b++
                           "\nend function "++(show n)++"\n"
-  show (Main n a b)     = "program "++(show n)++if not (isEmptyArg a) then (show a) else ""++"\n"++
+  show (Main n a b [])     = "program "++(show n)++if not (isEmptyArg a) then (show a) else ""++"\n"++
                              show b++
+                          "\nend program "++(show n)++"\n"
+  show (Main n a b ps)     = "program "++(show n)++if not (isEmptyArg a) then (show a) else ""++"\n"++
+                             show b++
+                             "\ncontains\n" ++
+                             concatMap show ps ++
                           "\nend program "++(show n)++"\n"
   show (Module n us i ds []) = "module "++(show n)++"\n" ++
                              showUse us ++
@@ -337,7 +342,7 @@ instance Show Program where
                              showUse us ++
                              show i ++
                              show ds ++
-							 "contains\n" ++
+			     "\ncontains\n" ++
                              concatMap show ps ++
                           "end module " ++ (show n)++"\n"
   show (BlockData n us i ds) = "block data " ++ (show n) ++ "\n" ++

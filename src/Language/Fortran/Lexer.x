@@ -123,7 +123,7 @@ data Token = Key String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | LabelT String | NewLine | NullStmtT | TokEOF | Text String
+	   | Hash | LBrace | RBrace | LabelT String | NewLine | TokEOF | Text String
 	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
