@@ -107,7 +107,7 @@ import Data.Char (toLower)
  INTRINSIC 		{ Key "intrinsic" }
  INQUIRE 		{ Key "inquire" }
  KIND 			{ Key "kind" }
- LABEL                  { LabelT $$ } 
+-- LABEL                  { LabelT $$ } 
  LEN 			{ Key "len" }
  LOGICAL 		{ Key "logical" }
  MODULE 		{ Key "module" }
@@ -1029,10 +1029,11 @@ executable_construct_p
 
 executable_construct :: { Fortran }
 executable_construct
-  : action_stmt                                   { $1 }
+  : NUM action_stmt                               { Label $1 $2 }
 --  | case_construct
   | do_construct                                  { $1 }
   | if_construct                                  { $1 }
+  | action_stmt                                   { $1 }
 --  | forall_construct
 --  | where_construct
 
@@ -1066,7 +1067,6 @@ action_stmt
   | stop_stmt                                     { $1 }
   | where_stmt                                    { $1 }
   | write_stmt                                    { $1 }
-  | LABEL action_stmt                             { (Label $1 $2) }
   | TEXT				          { (TextStmt $1) }
 
 call_stmt :: { Fortran }

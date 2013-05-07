@@ -50,16 +50,16 @@ $exponent_letter = [EeDd]
 --@signed_real_literal_constant = $sign? @real_literal_constant
 
 tokens :-
-  \n\# .* $					{ \s -> Text s }
+  \n\# .* $			{ \s -> Text s }
   \n(C|c).*$			{ \s -> NewLine }
-  \n						{ \s -> NewLine }
-  ($white # \n)+			;
-  ^$digit{1,5} ":"			{ \s -> LabelT s }
-  "#"						{ \s -> Hash }
-  "->"						{ \s -> MArrow }
-  "=>"						{ \s -> Arrow }
-  "**"						{ \s -> OpPower }
-  "//"	 					{ \s -> OpConcat }
+  \n				{ \s -> NewLine }
+  ($white # \n)+		;
+  -- ^$digit{1,5} ":"		{ \s -> LabelT s }
+  "#"				{ \s -> Hash }
+  "->"				{ \s -> MArrow }
+  "=>"				{ \s -> Arrow }
+  "**"				{ \s -> OpPower }
+  "//"	 			{ \s -> OpConcat }
   ".EQ."    | ".eq." | "=="	{ \s -> OpEQ }
   ".NE."    | ".ne." | "/="	{ \s -> OpNE }
   ".LE."    | ".le." | "<="	{ \s -> OpLE }
@@ -73,35 +73,35 @@ tokens :-
   ".NEGV."  | ".negv."  	{ \s -> OpNEQV }
   ".LT."    | ".lt." | "<"	{ \s -> OpLT }
   ".GT."    | ".gt." | ">"	{ \s -> OpGT }
-  "*"						{ \s -> OpMul }
-  "/"						{ \s -> OpDiv }
-  "+"						{ \s -> OpAdd }
-  "-"						{ \s -> OpSub }
-  ","						{ \s -> Comma }
-  "(/"						{ \s -> LArrCon }
-  "/)"						{ \s -> RArrCon }
-  "("						{ \s -> LParen }
-  ")"						{ \s -> RParen }
-  "="						{ \s -> OpEquals }
-  \"(. # \")*\"					{ \s -> StrConst s }
-  \'(. # \')*\'					{ \s -> StrConst s }
-  \'						{ \s -> SingleQuote }
-  \.						{ \s -> Period }
-  "::"						{ \s -> ColonColon }
-  ":"						{ \s -> Colon }
-  ";"                       { \s -> SemiColon }
-  "$"						{ \s -> Dollar }
-  "NULL()"					{ \s -> Key "null" }
-  "&"						;
-  "!".*$					;
-  "%"						{ \s -> Percent }
-  "{"						{ \s -> LBrace }
-  "}"						{ \s -> RBrace }
-  "else" @line_space "if"   { \s -> Key "elseif" }
-  @name						{ \s -> if elem (map toLower s) keywords
-                                                        then Key (map toLower s)
-							else ID s  }
-  @data_edit_desc			{ \s -> DataEditDest s }
+  "*"				{ \s -> OpMul }
+  "/"				{ \s -> OpDiv }
+  "+"				{ \s -> OpAdd }
+  "-"				{ \s -> OpSub }
+  ","				{ \s -> Comma }
+  "(/"				{ \s -> LArrCon }
+  "/)"				{ \s -> RArrCon }
+  "("				{ \s -> LParen }
+  ")"				{ \s -> RParen }
+  "="				{ \s -> OpEquals }
+  \"(. # \")*\"			{ \s -> StrConst s }
+  \'(. # \')*\'			{ \s -> StrConst s }
+  \'				{ \s -> SingleQuote }
+  \.				{ \s -> Period }
+  "::"				{ \s -> ColonColon }
+  ":"				{ \s -> Colon }
+  ";"                           { \s -> SemiColon }
+  "$"				{ \s -> Dollar }
+  "NULL()"			{ \s -> Key "null" }
+  "&"				;
+  "!".*$			;
+  "%"				{ \s -> Percent }
+  "{"				{ \s -> LBrace }
+  "}"				{ \s -> RBrace }
+  "else" @line_space "if"       { \s -> Key "elseif" }
+  @name				{ \s -> if elem (map toLower s) keywords
+                                        then Key (map toLower s)
+					else ID s  }
+  @data_edit_desc		{ \s -> DataEditDest s }
   @real_literal_constant	{ \s -> Num s }
   @binary_constant_prefix	{ \s -> BinConst s }
   @octal_constant_prefix	{ \s -> OctConst s }
@@ -109,7 +109,7 @@ tokens :-
   @binary_constant_suffix	{ \s -> BinConst s }
   @octal_constant_suffix	{ \s -> OctConst s }
   @hex_constant_suffix		{ \s -> HexConst s }
-  @digit_string				{ \s -> Num s }
+  @digit_string			{ \s -> Num s }
 
 {
 -- Each action has type :: String -> Token
@@ -123,7 +123,8 @@ data Token = Key String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | LabelT String | NewLine | TokEOF | Text String
+	   | Hash | LBrace | RBrace -- | LabelT String 
+	   | NewLine | TokEOF | Text String
 	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
