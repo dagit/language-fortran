@@ -1009,6 +1009,7 @@ block
 execution_part :: { Fortran }
 execution_part 
   : executable_construct_list                       { $1 }
+| {- empty -}                                       { NullStmt }
 
 executable_construct_list :: { Fortran }
 executable_construct_list
