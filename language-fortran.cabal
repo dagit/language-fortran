@@ -18,7 +18,8 @@ executable parser
                  haskell-src >= 1.0,
                  language-fortran,
                  syb >= 0.3,
-                 array >= 0.4
+                 array >= 0.4, 
+                 generic-deriving >= 1.5.5
 
 executable lexer
   main-is: LexerTest.hs
@@ -27,17 +28,20 @@ executable lexer
                  haskell-src >= 1.0,
                  language-fortran,
                  syb >= 0.3,
-                 array >= 0.4
+                 array >= 0.4,
+                 generic-deriving >= 1.5.5
 
 library
   exposed-modules:     Language.Fortran.Parser,
                        Language.Fortran.Lexer,
+                       Language.Fortran.Pretty,
                        Language.Fortran
   -- other-modules:       
   build-depends:       base >=4.0 && < 5,
                        syb >= 0.3,
                        haskell-src >= 1.0,		       		 
-                       array >= 0.4
+                       array >= 0.4,
+                       generic-deriving >= 1.5.5
 
   hs-source-dirs:      src
   build-tools: alex, happy
