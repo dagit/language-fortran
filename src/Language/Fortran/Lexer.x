@@ -2,6 +2,7 @@
 module Language.Fortran.Lexer where
 
 import Data.Char
+import Language.Fortran
 import Language.Haskell.ParseMonad
 
 }
@@ -50,16 +51,15 @@ $exponent_letter = [EeDd]
 --@signed_real_literal_constant = $sign? @real_literal_constant
 
 tokens :-
-  \n\# .* $					{ \s -> Text s }
+  \n\# .* $			{ \s -> Text s }
   \n(C|c).*$			{ \s -> NewLine }
-  \n						{ \s -> NewLine }
+  \n				{ \s -> NewLine }
   ($white # \n)+			;
-  ^$digit{1,5} ":"			{ \s -> LabelT s }
-  "#"						{ \s -> Hash }
-  "->"						{ \s -> MArrow }
-  "=>"						{ \s -> Arrow }
-  "**"						{ \s -> OpPower }
-  "//"	 					{ \s -> OpConcat }
+  "#"				{ \s -> Hash }
+  "->"				{ \s -> MArrow }
+  "=>"				{ \s -> Arrow }
+  "**"				{ \s -> OpPower }
+  "//"	 			{ \s -> OpConcat }
   ".EQ."    | ".eq." | "=="	{ \s -> OpEQ }
   ".NE."    | ".ne." | "/="	{ \s -> OpNE }
   ".LE."    | ".le." | "<="	{ \s -> OpLE }
@@ -73,35 +73,38 @@ tokens :-
   ".NEGV."  | ".negv."  	{ \s -> OpNEQV }
   ".LT."    | ".lt." | "<"	{ \s -> OpLT }
   ".GT."    | ".gt." | ">"	{ \s -> OpGT }
-  "*"						{ \s -> OpMul }
-  "/"						{ \s -> OpDiv }
-  "+"						{ \s -> OpAdd }
-  "-"						{ \s -> OpSub }
-  ","						{ \s -> Comma }
-  "(/"						{ \s -> LArrCon }
-  "/)"						{ \s -> RArrCon }
-  "("						{ \s -> LParen }
-  ")"						{ \s -> RParen }
-  "="						{ \s -> OpEquals }
-  \"(. # \")*\"					{ \s -> StrConst s }
-  \'(. # \')*\'					{ \s -> StrConst s }
-  \'						{ \s -> SingleQuote }
-  \.						{ \s -> Period }
-  "::"						{ \s -> ColonColon }
-  ":"						{ \s -> Colon }
-  ";"                       { \s -> SemiColon }
-  "$"						{ \s -> Dollar }
-  "NULL()"					{ \s -> Key "null" }
-  "&"						;
-  "!".*$					;
-  "%"						{ \s -> Percent }
-  "{"						{ \s -> LBrace }
-  "}"						{ \s -> RBrace }
-  "else" @line_space "if"   { \s -> Key "elseif" }
-  @name						{ \s -> if elem (map toLower s) keywords
-                                                        then Key (map toLower s)
-							else ID s  }
-  @data_edit_desc			{ \s -> DataEditDest s }
+  "*"				{ \s -> OpMul }
+  "/"				{ \s -> OpDiv }
+  "+"				{ \s -> OpAdd }
+  "-"				{ \s -> OpSub }
+  ","				{ \s -> Comma }
+  "(/"				{ \s -> LArrCon }
+  "/)"				{ \s -> RArrCon }
+  "("				{ \s -> LParen }
+  ")"				{ \s -> RParen }
+  "="				{ \s -> OpEquals }
+  \"(. # \")*\"			{ \s -> StrConst s }
+  \'(. # \')*\'			{ \s -> StrConst s }
+  "Z"\'(. # \')*\'		{ \s -> LitConst 'z' s }
+  "z"\'(. # \')*\'		{ \s -> LitConst 'z' s }
+  \'				{ \s -> SingleQuote }
+  \.				{ \s -> Period }
+  "::"				{ \s -> ColonColon }
+  ":"				{ \s -> Colon }
+  ";"                           { \s -> SemiColon }
+  "$"				{ \s -> Dollar }
+  "NULL()"			{ \s -> Key "null" }
+  "&"				; -- ignore & anywhere
+  "&"$white*\n        		{ \s -> NewLineAmp } -- ; -- ignore & and spaces followed by '\n' (i.e. line sep)
+  "!".*$			;
+  "%"				{ \s -> Percent }
+  "{"				{ \s -> LBrace }
+  "}"				{ \s -> RBrace }
+  "else" @line_space "if"       { \s -> Key "elseif" }
+  @name			        { \s -> if elem (map toLower s) keywords
+                                        then Key (map toLower s)
+					else ID s  }
+  @data_edit_desc		{ \s -> DataEditDest s }
   @real_literal_constant	{ \s -> Num s }
   @binary_constant_prefix	{ \s -> BinConst s }
   @octal_constant_prefix	{ \s -> OctConst s }
@@ -109,13 +112,14 @@ tokens :-
   @binary_constant_suffix	{ \s -> BinConst s }
   @octal_constant_suffix	{ \s -> OctConst s }
   @hex_constant_suffix		{ \s -> HexConst s }
-  @digit_string				{ \s -> Num s }
+  @digit_string			{ \s -> Num s }
 
 {
 -- Each action has type :: String -> Token
+		
 
 -- The token type:
-data Token = Key String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat 
+data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat
 	   | OpEQ | OpNE | OpLT | OpLE | OpGT | OpGE | OpLG
 	   | OpNOT | OpAND | OpOR | OpXOR | OpEQV | OpNEQV
 	   | BinConst String | OctConst String | HexConst String
@@ -123,17 +127,17 @@ data Token = Key String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | LabelT String | NewLine | TokEOF | Text String
+	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | NewLineAmp
 	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
 -- if they are keywords or IDs
 keywords :: [String]
-keywords = ["allocate","allocatable","assign",
-	"assignment","automatic","backspace","block","call","case",
+keywords = ["allocate", "allocatable","assign",
+	"assignment","automatic","backspace","block","call", "case",
 	"character","close","common","complex","contains","continue","cycle",
 	"data","deallocate","default","dimension","do",
-	"double","elemental","else","elseif","elsewhere","end","endfile","entry",
+	"double","elemental","else","elseif","elsewhere","end", "enddo", "endif", "endfile","entry",
 	"equivalence","exit","external",
 	"forall","format","function","goto","iolength",
 	"if","implicit","in","include","inout","integer","intent","interface",
@@ -152,7 +156,7 @@ keywords = ["access","action","advance","allocate","allocatable","assign",
 	"assignment","automatic","backspace","blank","block","call","case",
 	"character","close","common","complex","contains","continue","cycle",
 	"data","deallocate","default","delim","dimension","direct","do",
-	"double","elemental","else","elseif","elsewhere","end","endfile","entry",
+	"double","elemental","else","elseif","elsewhere","end", "enddo", "endif", "endfile","entry",
 	"eor","err","equivalence","exist","exit","external","file","fmt",
 	"forall","form","format","formatted","function","goto","iostat","iolength",
 	"if","implicit","in","inout","integer","intent","interface",
@@ -171,12 +175,14 @@ lexer = runL lexer'
 
 lexer' :: Lex a Token
 lexer' = do s <- getInput 
-            case alexScan ('\0',s) 0 of
-              AlexEOF             -> return TokEOF
-              AlexError (c,s')     -> fail ("unrecognizable token: " ++ show c)
-              AlexSkip (_,s') len -> (discard len) >> lexer'
-              AlexToken (_,s') len act -> let tok = act (take len s)
-                                          in if tok == NewLine
-                                             then (discard 1) >> lexer'
-                                             else (discard len) >> return tok              
+       	    startToken
+            case alexScan ('\0',[],s) 0 of
+              AlexEOF             -> return TokEOF 
+              AlexError (c,b,s')  -> fail ("unrecognizable token: " ++ show c)
+              AlexSkip  (_,b,s') len -> (discard len) >> lexer'
+              AlexToken (_,b,s') len act -> do let tok = act (take len s)
+                                               case tok of
+					         NewLine    -> lexNewline >> (return tok)
+					         NewLineAmp -> (discard len) >> lexNewline >> lexer'
+                                                 _          -> (discard len) >> (return tok)
 }

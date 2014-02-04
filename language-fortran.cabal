@@ -1,11 +1,11 @@
 name:                language-fortran
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Fortran parser and language support
 -- description:         
 license:             BSD3
 license-file:        LICENSE
-author:              Jason Dagit
-maintainer:          dagitj@gmail.com
+author:              Jason Dagit, Dominic Orchard
+maintainer:          dagitj@gmail.com, dom.orchard@gmail.com
 -- copyright:           
 category:            Language
 build-type:          Simple
@@ -32,6 +32,7 @@ executable lexer
 library
   exposed-modules:     Language.Fortran.Parser,
                        Language.Fortran.Lexer,
+                       Language.Fortran.Pretty,
                        Language.Fortran
   -- other-modules:       
   build-depends:       base >=4.0 && < 5,
