@@ -21,7 +21,7 @@ import Language.Haskell.Syntax (SrcLoc)
 --
 --  The AST is parameterised by type variable p which allows all nodes of the AST
 --  to be annotated. The default annotation is (). This is useful for analysis. 
---    The 'Anntotation' type class provides the function 'annotation :: d a -> a' to 
+--    The 'Tagged' type class provides the function 'tag :: d a -> a' to 
 --    extract these annotations.
 
 --  Furthermore, many nodes of the tree have a 'SrcSpan' which is the start and end
@@ -318,137 +318,137 @@ instance Span (Fortran a) where
     srcSpan (TextStmt x sp s)        = sp
     srcSpan (NullStmt x sp)          = sp
 
--- Extract the annotation 
+-- Extract the tag 
 
-class Annotation d where
-    annotation :: d a -> a 
+class Tagged d where
+    tag :: d a -> a 
 
-instance Annotation Attr where
-    annotation (Parameter x)   = x
-    annotation (Allocatable x) = x
-    annotation (External    x) = x
-    annotation (Intent x    _) = x
-    annotation (Intrinsic x)   = x
-    annotation (Optional x)    = x
-    annotation (Pointer x)     = x
-    annotation (Save x)        = x
-    annotation (Target x)      = x
-    annotation (Volatile x)    = x
-    annotation (Public x)      = x
-    annotation (Private x)     = x
-    annotation (Sequence x)    = x
+instance Tagged Attr where
+    tag (Parameter x)   = x
+    tag (Allocatable x) = x
+    tag (External    x) = x
+    tag (Intent x    _) = x
+    tag (Intrinsic x)   = x
+    tag (Optional x)    = x
+    tag (Pointer x)     = x
+    tag (Save x)        = x
+    tag (Target x)      = x
+    tag (Volatile x)    = x
+    tag (Public x)      = x
+    tag (Private x)     = x
+    tag (Sequence x)    = x
 
-instance Annotation BaseType where
-    annotation (Integer x)    = x
-    annotation (Real x)       = x
-    annotation (Character x)   = x
-    annotation (SomeType x)   = x
-    annotation (DerivedType x _) = x
-    annotation (Recursive x)  = x
-    annotation (Pure x)       = x
-    annotation (Elemental x)  = x
-    annotation (Logical x)    = x
-    annotation (Complex x)    = x
+instance Tagged BaseType where
+    tag (Integer x)    = x
+    tag (Real x)       = x
+    tag (Character x)   = x
+    tag (SomeType x)   = x
+    tag (DerivedType x _) = x
+    tag (Recursive x)  = x
+    tag (Pure x)       = x
+    tag (Elemental x)  = x
+    tag (Logical x)    = x
+    tag (Complex x)    = x
 
-instance Annotation SubName where
-    annotation (SubName x _)  = x
-    annotation (NullSubName x) = x
+instance Tagged SubName where
+    tag (SubName x _)  = x
+    tag (NullSubName x) = x
 
-instance Annotation VarName where
-    annotation (VarName x _) = x
+instance Tagged VarName where
+    tag (VarName x _) = x
 
-instance Annotation Implicit where
-    annotation (ImplicitNone x) = x
-    annotation (ImplicitNull x) = x
+instance Tagged Implicit where
+    tag (ImplicitNone x) = x
+    tag (ImplicitNull x) = x
 
-instance Annotation Uses where 
-    annotation (Use x _ _ _) = x
-    annotation (UseNil x) = x
+instance Tagged Uses where 
+    tag (Use x _ _ _) = x
+    tag (UseNil x) = x
 
-instance Annotation Arg where
-    annotation (Arg x _ _) = x
+instance Tagged Arg where
+    tag (Arg x _ _) = x
 
-instance Annotation ArgList where 
-    annotation (ArgList x _) = x
+instance Tagged ArgList where 
+    tag (ArgList x _) = x
 
-instance Annotation ArgName where
-    annotation (ASeq x _ _) = x
-    annotation (NullArg x) = x
-    annotation (ArgName x _) = x
+instance Tagged ArgName where
+    tag (ASeq x _ _) = x
+    tag (NullArg x) = x
+    tag (ArgName x _) = x
 
-instance Annotation ProgUnit where
-    annotation (Main x sp _ _ _ _)      = x
-    annotation (Sub x sp _ _ _ _)       = x
-    annotation (Function x sp _ _ _ _)  = x
-    annotation (Module x sp _ _ _ _ _ ) = x
-    annotation (BlockData x sp _ _ _ _) = x
-    annotation (PSeq x sp _ _)          = x
-    annotation (Prog x sp _)            = x
-    annotation (NullProg x sp)          = x
+instance Tagged ProgUnit where
+    tag (Main x sp _ _ _ _)      = x
+    tag (Sub x sp _ _ _ _)       = x
+    tag (Function x sp _ _ _ _)  = x
+    tag (Module x sp _ _ _ _ _ ) = x
+    tag (BlockData x sp _ _ _ _) = x
+    tag (PSeq x sp _ _)          = x
+    tag (Prog x sp _)            = x
+    tag (NullProg x sp)          = x
 
-instance Annotation Decl where
-    annotation (Decl x _ _ _)          = x
-    annotation (Namelist x _)        = x
-    annotation (Data x _)            = x
-    annotation (AccessStmt x _ _)    = x
-    annotation (ExternalStmt x _)    = x
-    annotation (Interface x _ _)     = x
-    annotation (Common x _ _ _)        = x
-    annotation (Equivalence x sp _)    = x
-    annotation (DerivedTypeDef x sp _ _ _ _) = x
-    annotation (Include x _)         = x
-    annotation (DSeq x _ _)          = x
-    annotation (TextDecl x _)        = x
-    annotation (NullDecl x _)        = x
+instance Tagged Decl where
+    tag (Decl x _ _ _)          = x
+    tag (Namelist x _)        = x
+    tag (Data x _)            = x
+    tag (AccessStmt x _ _)    = x
+    tag (ExternalStmt x _)    = x
+    tag (Interface x _ _)     = x
+    tag (Common x _ _ _)        = x
+    tag (Equivalence x sp _)    = x
+    tag (DerivedTypeDef x sp _ _ _ _) = x
+    tag (Include x _)         = x
+    tag (DSeq x _ _)          = x
+    tag (TextDecl x _)        = x
+    tag (NullDecl x _)        = x
 
-instance Annotation Fortran where
-    annotation (Assg x s e1 e2)        = x
-    annotation (For x s v e1 e2 e3 fs) = x
-    annotation (FSeq x sp f1 f2)       = x
-    annotation (If x sp e f1 fes f3)   = x
-    annotation (Allocate x sp e1 e2)   = x
-    annotation (Backspace x sp _)      = x
-    annotation (Call x sp e as)        = x
-    annotation (Open x sp s)           = x
-    annotation (Close x sp s)          = x 
-    annotation (Continue x sp)         = x
-    annotation (Cycle x sp s)          = x
-    annotation (Deallocate x sp es e)  = x
-    annotation (Endfile x sp s)        = x
-    annotation (Exit x sp s)           = x
-    annotation (Forall x sp es f)      = x
-    annotation (Goto x sp s)           = x
-    annotation (Nullify x sp e)        = x
-    annotation (Inquire x sp s e)      = x
-    annotation (Rewind x sp s)         = x 
-    annotation (Stop x sp e)           = x
-    annotation (Where x sp e f)        = x 
-    annotation (Write x sp s e)        = x
-    annotation (PointerAssg x sp e1 e2) = x
-    annotation (Return x sp e)         = x
-    annotation (Label x sp s f)        = x
-    annotation (Print x sp e es)       = x
-    annotation (ReadS x sp s e)        = x
-    annotation (TextStmt x sp s)       = x
-    annotation (NullStmt x sp)         = x
+instance Tagged Fortran where
+    tag (Assg x s e1 e2)        = x
+    tag (For x s v e1 e2 e3 fs) = x
+    tag (FSeq x sp f1 f2)       = x
+    tag (If x sp e f1 fes f3)   = x
+    tag (Allocate x sp e1 e2)   = x
+    tag (Backspace x sp _)      = x
+    tag (Call x sp e as)        = x
+    tag (Open x sp s)           = x
+    tag (Close x sp s)          = x 
+    tag (Continue x sp)         = x
+    tag (Cycle x sp s)          = x
+    tag (Deallocate x sp es e)  = x
+    tag (Endfile x sp s)        = x
+    tag (Exit x sp s)           = x
+    tag (Forall x sp es f)      = x
+    tag (Goto x sp s)           = x
+    tag (Nullify x sp e)        = x
+    tag (Inquire x sp s e)      = x
+    tag (Rewind x sp s)         = x 
+    tag (Stop x sp e)           = x
+    tag (Where x sp e f)        = x 
+    tag (Write x sp s e)        = x
+    tag (PointerAssg x sp e1 e2) = x
+    tag (Return x sp e)         = x
+    tag (Label x sp s f)        = x
+    tag (Print x sp e es)       = x
+    tag (ReadS x sp s e)        = x
+    tag (TextStmt x sp s)       = x
+    tag (NullStmt x sp)         = x
 
-instance Annotation Expr where
-   annotation (Con x sp _)        = x
-   annotation (ConL x sp _ _)     = x
-   annotation (ConS x sp _)       = x
-   annotation (Var x sp _ )       = x
-   annotation (Bin x sp _ _ _)    = x
-   annotation (Unary x sp _ _)    = x
-   annotation (CallExpr x sp _ _) = x
-   annotation (NullExpr x _)      = x
-   annotation (Null x _)          = x
-   annotation (ESeq x sp _ _)     = x
-   annotation (Bound x sp _ _)    = x
-   annotation (Sqrt x sp _)       = x
-   annotation (ArrayCon x sp _)   = x
-   annotation (AssgExpr x sp _ _) = x
+instance Tagged Expr where
+   tag (Con x sp _)        = x
+   tag (ConL x sp _ _)     = x
+   tag (ConS x sp _)       = x
+   tag (Var x sp _ )       = x
+   tag (Bin x sp _ _ _)    = x
+   tag (Unary x sp _ _)    = x
+   tag (CallExpr x sp _ _) = x
+   tag (NullExpr x _)      = x
+   tag (Null x _)          = x
+   tag (ESeq x sp _ _)     = x
+   tag (Bound x sp _ _)    = x
+   tag (Sqrt x sp _)       = x
+   tag (ArrayCon x sp _)   = x
+   tag (AssgExpr x sp _ _) = x
 
-instance Annotation GSpec where
-   annotation (GName x _) = x
-   annotation (GOper x _) = x
-   annotation (GAssg x)   = x
+instance Tagged GSpec where
+   tag (GName x _) = x
+   tag (GOper x _) = x
+   tag (GAssg x)   = x
