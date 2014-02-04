@@ -10,5 +10,4 @@ import Language.Haskell.ParseMonad
 main :: IO ()
 main = do
   s <- map toLower <$> getContents
-  l <- getSrcLocLex
-  print (alexScanTokens s l)
+  print (alexScanTokens s)

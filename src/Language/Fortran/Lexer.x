@@ -1,20 +1,9 @@
 {
-
-{-# LANGUAGE DeriveGeneric #-}
-
 module Language.Fortran.Lexer where
 
 import Data.Char
-import Debug.Trace
-
 import Language.Fortran
-
-import Language.Haskell.Syntax (SrcLoc)
 import Language.Haskell.ParseMonad
-
-import Generics.Deriving.Base hiding (P)
-import Generics.Deriving.Copoint
-
 
 }
 
@@ -96,6 +85,8 @@ tokens :-
   "="				{ \s -> OpEquals }
   \"(. # \")*\"			{ \s -> StrConst s }
   \'(. # \')*\'			{ \s -> StrConst s }
+  "Z"\'(. # \')*\'		{ \s -> LitConst 'z' s }
+  "z"\'(. # \')*\'		{ \s -> LitConst 'z' s }
   \'				{ \s -> SingleQuote }
   \.				{ \s -> Period }
   "::"				{ \s -> ColonColon }
@@ -104,7 +95,7 @@ tokens :-
   "$"				{ \s -> Dollar }
   "NULL()"			{ \s -> Key "null" }
   "&"				; -- ignore & anywhere
-  "&"$white*\n        		; -- ignore & and spaces followed by '\n' (i.e. line sep)
+  "&"$white*\n        		{ \s -> NewLineAmp } -- ; -- ignore & and spaces followed by '\n' (i.e. line sep)
   "!".*$			;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
@@ -125,21 +116,19 @@ tokens :-
 
 {
 -- Each action has type :: String -> Token
-
-
-instance Copointed Token where copoint = gcopoint			
+		
 
 -- The token type:
-data Token l = Key String l | OpPower l | OpMul l | OpDiv l | OpAdd l | OpSub l | OpConcat l
-	   | OpEQ l | OpNE l | OpLT l | OpLE l | OpGT l | OpGE l | OpLG l
-	   | OpNOT l | OpAND l | OpOR l | OpXOR l | OpEQV l | OpNEQV l
-	   | BinConst String l | OctConst String l | HexConst String l
-	   | ID String l | Num String l | Comma l | Bang l | Percent l
-	   | LParen l | RParen l | LArrCon l | RArrCon l | OpEquals l | RealConst String l | StopParamStart l
-	   | SingleQuote l | StrConst String l | Period l | Colon l | ColonColon l | SemiColon l
-	   | DataEditDest String l | Arrow l | MArrow l | TrueConst l | FalseConst l | Dollar l
-	   | Hash l | LBrace l | RBrace l | NewLine l | TokEOF l | Text String l
-	   deriving (Eq,Show,Generic1)
+data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat
+	   | OpEQ | OpNE | OpLT | OpLE | OpGT | OpGE | OpLG
+	   | OpNOT | OpAND | OpOR | OpXOR | OpEQV | OpNEQV
+	   | BinConst String | OctConst String | HexConst String
+	   | ID String | Num String | Comma | Bang | Percent
+	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
+	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
+	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
+	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | NewLineAmp
+	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
 -- if they are keywords or IDs
@@ -181,19 +170,19 @@ keywords = ["access","action","advance","allocate","allocatable","assign",
 	"unit","use","volatile","where","write"]
 -}
 
-lexer :: (Token SrcLoc -> P a) -> P a
+lexer :: (Token -> P a) -> P a
 lexer = runL lexer'
 
-lexer' :: Lex a (Token SrcLoc)
+lexer' :: Lex a Token
 lexer' = do s <- getInput 
        	    startToken
-	    l <- getSrcLocLex
-            case alexScan ('\0',s) 0 of
-              AlexEOF             -> return $ TokEOF l 
-              AlexError (c,s')    -> fail ("unrecognizable token: " ++ show c)
-              AlexSkip (_,s') len -> (discard len) >> lexer'
-              AlexToken (_,s') len act -> do let tok = act (take len s)
-                                             if (tok l) == (NewLine l)
-                                               then lexNewline >> (return $ tok l)
-                                               else (discard len) >> (return $ tok l)
+            case alexScan ('\0',[],s) 0 of
+              AlexEOF             -> return TokEOF 
+              AlexError (c,b,s')  -> fail ("unrecognizable token: " ++ show c)
+              AlexSkip  (_,b,s') len -> (discard len) >> lexer'
+              AlexToken (_,b,s') len act -> do let tok = act (take len s)
+                                               case tok of
+					         NewLine    -> lexNewline >> (return tok)
+					         NewLineAmp -> (discard len) >> lexNewline >> lexer'
+                                                 _          -> (discard len) >> (return tok)
 }
