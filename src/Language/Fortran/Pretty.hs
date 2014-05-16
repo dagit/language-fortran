@@ -150,6 +150,7 @@ instance (OutputG (Fortran p) v, OutputG (Decl p) v, OutputG (Implicit p) v, Alt
             OutputF (Block p) v where
   outputF (Block _ (UseBlock us _) i sp ds f) = showUse us++outputG i++(outputG ds)++outputG f
 
+
 instance (Indentor (Decl p), 
           OutputG (ArgList p) v,
           OutputG (Attr p) v,
