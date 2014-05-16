@@ -276,7 +276,7 @@ end_block_data_stmt
   
 module :: { ProgUnit A0 }
 module
-   : srcloc module_stmt use_stmt_list implicit_part specification_part_top module_subprogram_part end_module_stmt
+   : srcloc module_stmt use_stmt_list implicit_part specification_part_top module_subprogram_part end_module_stmt newline0
          {%  do { s <- getSrcSpan $1;
                   name <- cmpNames $2 $7  "module";
 		  return (Module ()s name $3 $4 $5 $6); } }
@@ -564,12 +564,8 @@ module_procedure_stmt
 
 sub_name_list :: { [SubName A0 ] }
 sub_name_list
-  :  sub_name_list ',' sub_name  { $1++[$3] }
-  |  sub_name                    { [$1] }
-
-sub_name :: { SubName A0 }
-sub_name
-  :  ID     { SubName () $1 }
+  :  sub_name_list ',' subname  { $1++[$3] }
+  |  subname                    { [$1] }
 
 derived_type_def :: { Decl A0 }
 derived_type_def
@@ -692,6 +688,7 @@ name_list
 id2 :: { String } -- hack len
 id2 : ID  { $1 }
     | LEN { "len" }
+    | COMMON { "common" } -- allow common as a subname (can happen)
 	
 defined_operator :: { BinOp A0 }
 defined_operator
@@ -741,6 +738,7 @@ function_stmt
 subname :: { SubName A0 }
 subname
 : ID	   { SubName () $1 }
+| COMMON   { SubName () "common" }  -- "common" is allowed as a subname
   
 prefix :: { (BaseType A0, Expr A0, Expr A0) }
 prefix
