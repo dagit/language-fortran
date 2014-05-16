@@ -308,12 +308,13 @@ internal_subprogram
   
 use_stmt_list :: { Uses A0 }
 use_stmt_list
-: use_stmt_list use_stmt  { Use () $2 $1 () }
+: use_stmt use_stmt_list  { Use () $1 $2 () }
 | {- empty -}  	  { UseNil () }
 
 use_stmt :: { (String, Renames) }
 use_stmt
 : USE id2 newline { ($2, []) }
+| USE COMMON ',' renames newline { ("common", $4) } -- Since "common" is a valid module name
 | USE id2 ',' renames newline { ($2, $4) }
 
 renames :: { [(Variable, Variable)] }
