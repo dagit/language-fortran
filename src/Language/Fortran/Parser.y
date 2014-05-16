@@ -202,11 +202,11 @@ newline0 : newline  {}
 
 main_program :: { ProgUnit A0 }
 main_program
-  : srcloc program_stmt use_stmt_list implicit_part srcloc specification_part_top execution_part module_subprogram_part end_program_stmt newline0
+  : srcloc program_stmt srcloc use_stmt_list implicit_part srcloc specification_part_top execution_part module_subprogram_part end_program_stmt newline0
                 {% do { s <- getSrcSpan $1;
-		        s' <- getSrcSpan $5;
-		        name <- cmpNames (fst $2) $9 "program";
-		        return (Main () s name (snd $2) (Block () $3 $4 s' $6 $7) $8); } }
+		        s' <- getSrcSpan $6;
+		        name <- cmpNames (fst $2) $10 "program";
+		        return (Main () s name (snd $2) (Block () (UseBlock $4 $3) $5 s' $7 $8) $9); } }
 
 program_stmt :: { (SubName A0, Arg A0) }
 program_stmt
@@ -231,11 +231,11 @@ external_subprogram
 
 subroutine_subprogram :: { ProgUnit A0 }
 subroutine_subprogram 
-  : srcloc subroutine_stmt use_stmt_list implicit_part srcloc specification_part_top execution_part end_subroutine_stmt newline0
+  : srcloc subroutine_stmt srcloc use_stmt_list implicit_part srcloc specification_part_top execution_part end_subroutine_stmt newline0
   {% do { s <- getSrcSpan $1;
-          s' <- getSrcSpan $5;
-          name <- cmpNames (fst3 $2) $8 "subroutine";
-          return (Sub () s (trd3 $2) name (snd3 $2) (Block () $3 $4 s' $6 $7)); } }
+          s' <- getSrcSpan $6;
+          name <- cmpNames (fst3 $2) $9 "subroutine";
+          return (Sub () s (trd3 $2) name (snd3 $2) (Block () (UseBlock $4 $3) $5 s' $7 $8)); } }
 
 end_subroutine_stmt :: { String }
 end_subroutine_stmt
@@ -251,10 +251,10 @@ end_function_stmt
 
 function_subprogram :: { ProgUnit A0 }
 function_subprogram
-: srcloc function_stmt use_stmt_list implicit_part srcloc specification_part_top execution_part end_function_stmt newline0  {% do { s <- getSrcSpan $1;
-                       s' <- getSrcSpan $5;
-                       name <- cmpNames (fst3 $2) $8 "function";
-		       return (Function () s (trd3 $2) name (snd3 $2) (Block () $3 $4 s' $6 $7)); } }
+: srcloc function_stmt srcloc use_stmt_list implicit_part srcloc specification_part_top execution_part end_function_stmt newline0  {% do { s <- getSrcSpan $1;
+                       s' <- getSrcSpan $6;
+                       name <- cmpNames (fst3 $2) $9 "function";
+		       return (Function () s (trd3 $2) name (snd3 $2) (Block () (UseBlock $4 $3) $5 s' $7 $8)); } }
 
 block_data :: { ProgUnit A0 }
 block_data

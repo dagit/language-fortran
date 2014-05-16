@@ -80,11 +80,13 @@ data Implicit p = ImplicitNone p | ImplicitNull p
 
 type Renames = [(Variable, Variable)] -- renames for "use"s 
 
-data Uses p     = Use p (String, Renames) (Uses p) p  -- (second 'p' let's you annotate the 'cons' part of the cell)
+data UseBlock p = UseBlock (Uses p) SrcLoc deriving (Show, Functor, Typeable, Data, Eq)
+
+data Uses p  = Use p (String, Renames) (Uses p) p  -- (second 'p' let's you annotate the 'cons' part of the cell)
                 | UseNil p deriving (Show, Functor, Typeable, Data, Eq)
 
              --       use's     implicit  decls  stmts
-data Block    p = Block p  (Uses p) (Implicit p) SrcSpan (Decl p) (Fortran p)
+data Block    p = Block p  (UseBlock p) (Implicit p) SrcSpan (Decl p) (Fortran p)
                 deriving (Show, Functor, Typeable, Data, Eq)
 
 data Decl     p = Decl           p SrcSpan [(Expr p, Expr p)] (Type p)      -- declaration stmt
