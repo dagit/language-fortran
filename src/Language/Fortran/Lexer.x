@@ -96,7 +96,7 @@ tokens :-
   "$"				{ \s -> Dollar }
   "NULL()"			{ \s -> Key "null" }
   "&"				; -- ignore & anywhere
-  \n$white*"&"       		{ \s -> NewLineAmp } -- ignore '\n' followed by spaces and & (continuation line)
+  \n$white*"&"       		{ \s -> NewLineAmpAlt } -- ignore '\n' followed by spaces and & (continuation line)
   "&"$white*\n        		{ \s -> NewLineAmp } -- ignore & and spaces followed by '\n' (continuation line)
   "!".*$			;
   "%"				{ \s -> Percent }
@@ -186,5 +186,6 @@ lexer' = do s <- getInput
                                                case tok of
 					         NewLine    -> lexNewline >> (return tok)
 					         NewLineAmp -> (discard len) >> lexNewline >> lexer'
+					         NewLineAmpAlt -> lexNewline >> (discard len) >> lexer'
                                                  _          -> (discard len) >> (return tok)
 }

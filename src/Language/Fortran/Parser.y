@@ -164,6 +164,7 @@ import Data.Char (toLower)
  WRITE 			{ Key "write" }
  ID                     { ID $$ }
  NUM                    { Num $$ }
+ LABEL                  { Num $$ }
  TEXT                   { Text $$ }
 %%
 
@@ -953,7 +954,7 @@ do_construct
 
 block_do_construct :: { Fortran A0 } 
 block_do_construct                  
-: srcloc do_stmt do_block end_do  {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $3) }
+: srcloc do_stmt do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $3) }
 
 do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 do_stmt
@@ -961,13 +962,13 @@ do_stmt
   | label_do_stmt newline           { $1 }
 
 label_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
-  : DO label loop_control   { $3 }
-  | DO label                {% getSrcSpanNull >>= (\s -> return $ (VarName () "", NullExpr () s, NullExpr () s, NullExpr () s)) }
+  : DO NUM loop_control   { $3 }
+  
 
 nonlabel_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 nonlabel_do_stmt
   : DO loop_control                  { $2 }
-  | DO                                 {% getSrcSpanNull >>= (\s -> return $ (VarName () "", NullExpr () s, NullExpr () s, NullExpr () s)) }
+  | DO                               {% getSrcSpanNull >>= (\s -> return $ (VarName () "", NullExpr () s, NullExpr () s, NullExpr () s)) }
 
 loop_control :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 loop_control
@@ -980,35 +981,63 @@ loop_control2
 | {- empty -}                      {% getSrcSpanNull >>= (\s -> return $ Con () s "1") }
 
 do_block :: { Fortran A0 }
-do_block
-  : block                            { $1 }
+do_block : line newline do_block { FSeq () (spanTrans $1 $3) $1 $3 }
+| NUM end_do  {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
+| end_do      {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
+| {- empty -} {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
+--         | line newline { $1 }
+
+line :: { Fortran A0 }
+line :  NUM numberedLine   {%
+  do s <- getSrcSpanNull
+     return $ case $2 of 
+                Left () -> NullStmt () s
+                Right e -> Label () s $1 e }
+| numberedLine  {%
+  do s <- getSrcSpanNull
+     return $ case $1 of 
+                Left () -> NullStmt () s
+                Right e -> e }
+
+
+-- executable_construct newline executable_construct_list { FSeq () (spanTrans $1 $3) $1 $3 }
+-- | executable_construct newline { $1 }
+
+
+numberedLine :: { Either () (Fortran A0) }
+numberedLine : 
+  -- end_do                        { Left () }
+  executable_constructP         { Right $1 }
+
 
 end_do :: { }
 end_do
-  : END DO {} 
-  | ENDDO  {} 
+: END DO {}
+| ENDDO  {} 
 
 block :: { Fortran A0 }
 block
   : executable_construct_list        { $1 }
- | {- empty -}                      {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
  
 execution_part :: { Fortran A0 }
 execution_part 
   : executable_construct_list        { $1 }
- | {- empty -}                      {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
 
 executable_construct_list :: { Fortran A0 }
 executable_construct_list
 : executable_construct newline executable_construct_list { FSeq () (spanTrans $1 $3) $1 $3 }
-| executable_construct newline                           { $1 }
+| executable_construct newline { $1 }
 
 
 executable_construct :: { Fortran A0 }
 executable_construct
-: srcloc NUM executable_construct                {% (getSrcSpan $1) >>= (\s -> return $ Label () s $2 $3) }
---  | case_construct
-  | do_construct                                  { $1 }
+: -- NUM executable_constructP     {% (getSrcSpanNull) >>= (\s -> return $ Label () s $1 $2) }
+   executable_constructP     { $1 }
+
+executable_constructP :: { Fortran A0 }
+executable_constructP
+: --  | case_construct
+    do_construct                                  { $1 }
   | if_construct                                  { $1 }
   | action_stmt                                   { $1 }
 --  | forall_construct
@@ -1504,7 +1533,7 @@ input_item
 
 label :: { Expr A0 }
 label
-: srcloc NUM                       {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
+: srcloc LABEL                       {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
 
 --internal_file_unit :: { Expr A0 }
 --internal_file_unit
