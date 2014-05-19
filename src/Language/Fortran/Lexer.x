@@ -108,6 +108,8 @@ tokens :-
 					else ID s  }
   @data_edit_desc		{ \s -> DataEditDest s }
   @real_literal_constant	{ \s -> Num s }
+
+
   @binary_constant_prefix	{ \s -> BinConst s }
   @octal_constant_prefix	{ \s -> OctConst s }
   @hex_constant_prefix		{ \s -> HexConst s }
@@ -122,7 +124,7 @@ tokens :-
 
 -- The token type:
 data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat
-	   | OpEQ | OpNE | OpLT | OpLE | OpGT | OpGE | OpLG
+	   | OpEQ | OpNE | OpLT | OpLE | OpGT | OpGE | OpLG 
 	   | OpNOT | OpAND | OpOR | OpXOR | OpEQV | OpNEQV
 	   | BinConst String | OctConst String | HexConst String
 	   | ID String | Num String | Comma | Bang | Percent

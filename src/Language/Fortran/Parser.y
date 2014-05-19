@@ -52,6 +52,7 @@ import Data.Char (toLower)
  '}'                    { RBrace }
  '(/'                   { LArrCon }
  '/)'                   { RArrCon }
+ DATA_DESC              { DataEditDest $$ }
 --'b'                    { LitMark $$ }
 --'B'                    { LitMark $$ }
 --'z'                    { LitMark $$ }
@@ -99,7 +100,7 @@ import Data.Char (toLower)
  EXTERNAL 		{ Key "external" }
  FORALL 		{ Key "forall" }
  FOREACH		{ Key "foreach" }
--- FORMAT 		{ Key "format" }
+ FORMAT 		{ Key "format" }
  FUNCTION 		{ Key "function" }
  GOTO 			{ Key "goto" }
  IOLENGTH               { Key "iolength" }
@@ -985,35 +986,16 @@ do_block : line newline do_block { FSeq () (spanTrans $1 $3) $1 $3 }
 | NUM end_do  {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
 | end_do      {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
 | {- empty -} {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
---         | line newline { $1 }
 
 line :: { Fortran A0 }
-line :  NUM numberedLine   {%
-  do s <- getSrcSpanNull
-     return $ case $2 of 
-                Left () -> NullStmt () s
-                Right e -> Label () s $1 e }
-| numberedLine  {%
-  do s <- getSrcSpanNull
-     return $ case $1 of 
-                Left () -> NullStmt () s
-                Right e -> e }
-
-
--- executable_construct newline executable_construct_list { FSeq () (spanTrans $1 $3) $1 $3 }
--- | executable_construct newline { $1 }
-
-
-numberedLine :: { Either () (Fortran A0) }
-numberedLine : 
-  -- end_do                        { Left () }
-  executable_constructP         { Right $1 }
-
+line :  NUM executable_constructP   {% getSrcSpanNull >>= (\s -> return $ Label () s $1 $2  ) }
+          | executable_constructP  { $1 }
 
 end_do :: { }
 end_do
 : END DO {}
 | ENDDO  {} 
+| CONTINUE {}
 
 block :: { Fortran A0 }
 block
@@ -1063,6 +1045,7 @@ action_stmt
 --  | end_program_stmt
 --  | end_subroutine_stmt
   | exit_stmt                                     { $1 }
+  | format_stmt                                   { $1 }
   | forall_stmt                                   { $1 }
   | goto_stmt                                     { $1 }
   | if_stmt                                       { $1 }
@@ -1078,6 +1061,9 @@ action_stmt
   | where_stmt                                    { $1 }
   | write_stmt                                    { $1 }
 | srcloc TEXT				          {% getSrcSpan $1 >>= (\s -> return $ TextStmt () s $2) }
+
+format_stmt :: { Fortran A0 }
+format_stmt : srcloc FORMAT '(' io_control_spec_list ')' {% getSrcSpan $1 >>= (\s -> return $ Format () $4) }
 
 call_stmt :: { Fortran A0 }
 call_stmt
@@ -1476,6 +1462,7 @@ output_item_list
 output_item :: { Expr A0 }
 output_item
   : expr                                          { $1 }
+| '(' actual_arg_spec_list ')'                    { $2 }
 --  | io_implied_do                                 { $1 }
 
 
@@ -1499,6 +1486,12 @@ io_control_spec
 '*'                                    {% getSrcSpanNull >>= (\s -> return $ NoSpec () (Var () s [(VarName () "*", [])])) }
 | END '=' label                          { End () $3 }
 | io_control_spec_id                     { $1 }
+| NUM                                    {% getSrcSpanNull >>= (\s -> return $ Number () (Con () s $1)) }
+| floating_spec                          { $1 }
+
+floating_spec :: { Spec A0 }
+floating_spec : DATA_DESC      {% getSrcSpanNull >>= (\s -> return $ Floating () (NullExpr () s) (Con () s $1) ) }
+| NUM DATA_DESC  {% getSrcSpanNull >>= (\s -> return $ Floating () (Con () s $1) (Con () s $2)) }
 
 io_control_spec_id :: { Spec A0 }
 : variable                               { NoSpec () $1 }

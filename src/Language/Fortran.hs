@@ -156,6 +156,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | Deallocate p SrcSpan [(Expr p)] (Expr p)
                 | Endfile p SrcSpan [Spec p]
                 | Exit p SrcSpan String
+                | Format p [Spec p]
                 | Forall p SrcSpan ([(String,(Expr p),(Expr p),(Expr p))],(Expr p)) (Fortran p)
                 | Goto p SrcSpan String
                 | Nullify p SrcSpan [(Expr p)]
@@ -232,6 +233,7 @@ data Spec     p = Access   p (Expr p)
               | Named      p (Expr p)
               | NoSpec     p (Expr p)
               | Number     p (Expr p)
+              | Floating p (Expr p) (Expr p)
               | NextRec    p (Expr p)
               | NML        p (Expr p)
               | Opened     p (Expr p) 

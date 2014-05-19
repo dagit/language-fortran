@@ -353,6 +353,7 @@ instance (OutputG (Expr p) v, Alts v) => OutputF (Spec p) v where
   outputF (NextRec       _ s) = "nextrec = "++outputG s
   outputF (NML           _ s) = "nml = "++outputG s
   outputF (NoSpec        _ s) = outputG s
+  outputF (Floating      _ s1 s2) = outputG s1 ++ "F" ++ outputG s2
   outputF (Number        _ s) = "number = "++outputG s
   outputF (Pad           _ s) = "pad = "++outputG s
   outputF (Position      _ s) = "position = "++outputG s
@@ -445,6 +446,7 @@ instance (Indentor (Fortran p),
     outputIndF i t@(Deallocate _ _ es e)            = (indR t i)++"deallocate "++asTuple outputG es++outputG e++"\n"
     outputIndF i t@(Endfile _ _ ss)                 = (indR t i)++"endfile "++asTuple outputG ss++"\n"
     outputIndF i t@(Exit _ _ s)                     = (indR t i)++"exit "++outputG s
+    outputIndF i t@(Format        _ es)             = (indR t i)++"format " ++ (asTuple outputG es)
     outputIndF i t@(Forall _ _ (is, (NullExpr _ _)) f)    = (indR t i)++"forall ("++showForall is++") "++outputG f
     outputIndF i t@(Forall _ _ (is,e)            f) = (indR t i)++"forall ("++showForall is++","++outputG e++") "++outputG f
     outputIndF i t@(Goto _ _ s)                     = (indR t i)++"goto "++outputG s
