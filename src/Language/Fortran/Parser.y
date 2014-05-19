@@ -958,6 +958,11 @@ block_do_construct
 do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 do_stmt
   : nonlabel_do_stmt newline        { $1 }
+  | label_do_stmt newline           { $1 }
+
+label_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
+  : DO label loop_control   { $3 }
+  | DO label                {% getSrcSpanNull >>= (\s -> return $ (VarName () "", NullExpr () s, NullExpr () s, NullExpr () s)) }
 
 nonlabel_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 nonlabel_do_stmt

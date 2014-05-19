@@ -53,7 +53,7 @@ $exponent_letter = [EeDd]
 
 tokens :-
   \n\# .* $			{ \s -> Text s }
-  \n(C|c).*$			{ \s -> NewLine }
+  \n(C|c).*$			; -- Fortran 77 style comment
   \n				{ \s -> NewLine }
   ($white # \n)+			;
   "#"				{ \s -> Hash }
