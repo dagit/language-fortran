@@ -4,6 +4,7 @@ module Language.Fortran.Lexer where
 import Data.Char
 import Language.Fortran
 import Language.Haskell.ParseMonad
+import Debug.Trace
 
 }
 
@@ -95,7 +96,8 @@ tokens :-
   "$"				{ \s -> Dollar }
   "NULL()"			{ \s -> Key "null" }
   "&"				; -- ignore & anywhere
-  "&"$white*\n        		{ \s -> NewLineAmp } -- ; -- ignore & and spaces followed by '\n' (i.e. line sep)
+  \n$white*"&"       		{ \s -> NewLineAmp } -- ignore '\n' followed by spaces and & (continuation line)
+  "&"$white*\n        		{ \s -> NewLineAmp } -- ignore & and spaces followed by '\n' (continuation line)
   "!".*$			;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
@@ -127,7 +129,7 @@ data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | NewLineAmp
+	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | NewLineAmp | NewLineAmpAlt
 	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
