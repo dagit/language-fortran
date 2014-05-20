@@ -955,16 +955,21 @@ do_construct
 
 block_do_construct :: { Fortran A0 } 
 block_do_construct                  
-: srcloc do_stmt do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $3) }
-
-do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
-do_stmt
-  : nonlabel_do_stmt newline        { $1 }
-  | label_do_stmt newline           { $1 }
-
-label_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
-  : DO NUM loop_control   { $3 }
-  
+: srcloc nonlabel_do_stmt newline do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $4) } 
+| srcloc DO NUM loop_control newline do_block_num 
+                    {% do { (fs, n) <- return $ $6;
+			    s       <- getSrcSpan $1;
+			    if (n == $3) then 
+				return $ For () s (fst4 $4) (snd4 $4) (trd4 $4) (frh4 $4) fs
+                            else parseError "DO/END DO labels don't match"
+                          } }
+| srcloc DO NUM loop_control newline do_block_cont 
+                    {% do { (fs, n) <- return $ $6;
+			    s       <- getSrcSpan $1;
+			    if (n == $3) then 
+				return $ For () s (fst4 $4) (snd4 $4) (trd4 $4) (frh4 $4) fs
+                            else parseError "DO/CONTINUE labels don't match"
+                          } }
 
 nonlabel_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 nonlabel_do_stmt
@@ -985,7 +990,16 @@ do_block :: { Fortran A0 }
 do_block : line newline do_block { FSeq () (spanTrans $1 $3) $1 $3 }
 | NUM end_do  {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
 | end_do      {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
-| {- empty -} {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
+
+do_block_num :: { (Fortran A0, String) }
+do_block_num : line newline do_block_num { let (fs, n) = $3 in (FSeq () (spanTrans $1 fs) $1 fs, n) }
+| NUM end_do  {% getSrcSpanNull >>= (\s -> return $ (NullStmt () s, $1)) }
+
+
+do_block_cont :: { (Fortran A0, String) }
+do_block_cont : 
+   NUM CONTINUE  {% getSrcSpanNull >>= (\s -> return $ (NullStmt () s, $1)) }
+| line newline do_block_cont { let (fs, n) = $3 in (FSeq () (spanTrans $1 fs) $1 fs, n) }
 
 line :: { Fortran A0 }
 line :  NUM executable_constructP   {% getSrcSpanNull >>= (\s -> return $ Label () s $1 $2  ) }
@@ -995,7 +1009,6 @@ end_do :: { }
 end_do
 : END DO {}
 | ENDDO  {} 
-| CONTINUE {}
 
 block :: { Fortran A0 }
 block
@@ -1013,8 +1026,8 @@ executable_construct_list
 
 executable_construct :: { Fortran A0 }
 executable_construct
-: -- NUM executable_constructP     {% (getSrcSpanNull) >>= (\s -> return $ Label () s $1 $2) }
-   executable_constructP     { $1 }
+:  NUM executable_constructP     {% (getSrcSpanNull) >>= (\s -> return $ Label () s $1 $2) }
+|  executable_constructP     { $1 }
 
 executable_constructP :: { Fortran A0 }
 executable_constructP
@@ -1025,7 +1038,6 @@ executable_constructP
 --  | forall_construct
 --  | where_construct
  
-
 equivalence_stmt :: { Decl A0 }
 equivalence_stmt 
 : srcloc EQUIVALENCE '(' vlist ')'              {% getSrcSpan $1 >>= (\s -> return $ Equivalence () s $4) }
@@ -1671,6 +1683,7 @@ cmpNames x "" z                        = return x
 cmpNames (SubName a x) y z | x==y      = return (SubName a x)
                            | otherwise = parseError (z ++ " name \""++x++"\" does not match \""++y++"\" in end " ++ z ++ " statement\n")
 cmpNames s y z                       = parseError (z ++" names do not match\n")
+
 					   
 isEmpty :: [a] -> Bool
 isEmpty [] = True

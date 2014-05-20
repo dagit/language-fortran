@@ -96,8 +96,9 @@ tokens :-
   "$"				{ \s -> Dollar }
   "NULL()"			{ \s -> Key "null" }
   "&"				; -- ignore & anywhere
-  \n$white*"&"       		{ \s -> NewLineAmpAlt } -- ignore '\n' followed by spaces and & (continuation line)
-  "&"$white*\n        		{ \s -> NewLineAmp } -- ignore & and spaces followed by '\n' (continuation line)
+  \n$white*"&"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and & (continuation line)
+  \n$white*"$"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and $ (continuation line)
+  "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
   "!".*$			;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
@@ -131,7 +132,7 @@ data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | NewLineAmp | NewLineAmpAlt
+	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt
 	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
@@ -187,7 +188,7 @@ lexer' = do s <- getInput
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
                                                case tok of
 					         NewLine    -> lexNewline >> (return tok)
-					         NewLineAmp -> (discard len) >> lexNewline >> lexer'
-					         NewLineAmpAlt -> lexNewline >> (discard len) >> lexer'
-                                                 _          -> (discard len) >> (return tok)
+					         ContLine   -> (discard len) >> lexNewline >> lexer'
+					         ContLineAlt -> lexNewline >> (discard (len - 1)) >> lexer'
+                                                 _           -> (discard len) >> (return tok)
 }

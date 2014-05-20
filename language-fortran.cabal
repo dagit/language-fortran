@@ -11,23 +11,7 @@ category:            Language
 build-type:          Simple
 cabal-version:       >=1.8
 
-executable parser
-  main-is: ParserTest.hs
-  hs-source-dirs: src
-  build-depends: base >= 4.0 && < 5,
-                 haskell-src >= 1.0,
-                 language-fortran,
-                 syb >= 0.3,
-                 array >= 0.4
 
-executable lexer
-  main-is: LexerTest.hs
-  hs-source-dirs: src
-  build-depends: base >= 4.0 && < 5,
-                 haskell-src >= 1.0,
-                 language-fortran,
-                 syb >= 0.3,
-                 array >= 0.4
 
 library
   exposed-modules:     Language.Fortran.Parser,
