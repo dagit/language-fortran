@@ -373,6 +373,7 @@ instance (OutputG (Expr p) v, Alts v) => OutputF (Spec p) v where
   outputF (Status        _ s) = "status = "++outputG s
   outputF (StringLit        _ s) = "'" ++ s ++ "'"
   outputF (Unit _ s)          = "unit = "++outputG s
+  outputF (Delimiter _)       = "/"
 
 
 

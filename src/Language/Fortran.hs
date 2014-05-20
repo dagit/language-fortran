@@ -182,7 +182,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
 data Expr  p = Con p SrcSpan String
              | ConL p SrcSpan Char String
              | ConS p SrcSpan String  -- String representing a constant
-             | Var p SrcSpan  [((VarName p),[(Expr p)])]
+             | Var p SrcSpan  [(VarName p, [Expr p])]
              | Bin p SrcSpan  (BinOp p) (Expr p) (Expr p)
              | Unary p SrcSpan (UnaryOp p) (Expr p)
              | CallExpr p SrcSpan (Expr p) (ArgList p)
@@ -236,7 +236,7 @@ data Spec     p = Access   p (Expr p)
               | Named      p (Expr p)
               | NoSpec     p (Expr p)
               | Number     p (Expr p)
-              | Floating p (Expr p) (Expr p)
+              | Floating   p (Expr p) (Expr p)
               | NextRec    p (Expr p)
               | NML        p (Expr p)
               | Opened     p (Expr p) 
@@ -252,6 +252,7 @@ data Spec     p = Access   p (Expr p)
               | StringLit     p String 
               | Unit       p (Expr p)
               | WriteSp    p (Expr p)
+              | Delimiter  p 
                 deriving (Show, Functor,Typeable,Data, Eq)
 
 -- Extract span information from the source tree

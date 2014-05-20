@@ -697,6 +697,7 @@ id2 : ID  { $1 }
 
 id_keywords :: { String } -- identifiers which became keywords, but can still be used as variables
 id_keywords : COMMON { "common" } -- allow common as a subname (can happen)
+            | ALLOCATE { "allocate " }
 	    | id_keywords_2 { $1 }
 
 id_keywords_2 :: { String }
@@ -792,6 +793,13 @@ variable :: { Expr A0 }
 variable
  : srcloc scalar_variable_name_list     {% (getSrcSpan $1) >>= (\s -> return $ Var () s $2) }
 
+
+scalar_variable_name_list :: { [(VarName A0, [Expr A0])] }
+scalar_variable_name_list
+  : scalar_variable_name_list '%' scalar_variable_name    { $1++[$3] }
+  | scalar_variable_name                                  { [$1] }
+
+
 scalar_variable_name :: { (VarName A0, [Expr A0]) }
 scalar_variable_name
 : ID '(' section_subscript_list ')' { (VarName () $1, $3) }
@@ -801,12 +809,6 @@ scalar_variable_name
 
 -- | TYPE                           { (VarName () "type", []) } -- a bit of a hack but 'type' allowed as var name
 --                                                              --  but causes REDUCE REDUCE conflicts! 
-  
-scalar_variable_name_list :: { [(VarName A0, [Expr A0])] }
-scalar_variable_name_list
-  : scalar_variable_name_list '%' scalar_variable_name    { $1++[$3] }
-  | scalar_variable_name                                  { [$1] }
-
 
 -- bound comes through int_expr
 subscript :: { Expr A0 }
@@ -892,9 +894,20 @@ primary :: { Expr A0 }
 primary 
 : constant                         { $1 }
 | variable                         { $1 }
+| srcloc type_cast '(' expr ')'    {% getSrcSpan $1 >>= (\s -> return $ Var () s [(VarName () $2, [$4])]) }
+										  
 | array_constructor                { $1 }
 | '(' expr ')'                     { $2 }
 | srcloc SQRT '(' expr ')'	   {% getSrcSpan $1 >>= (\s -> return $ Sqrt () s $4) }
+
+
+type_cast :: { String }
+type_cast 
+ : REAL      { "REAL"      } -- The following supports the type cast notioatn
+ | INTEGER   { "INTEGER"   }
+ | LOGICAL   { "LOGICAL"   }
+ | CHARACTER { "CHARACTER" }
+
 
 -- Bit of a conflict here- not entirely sure when this is needed
 -- | srcloc ':'                       {% getSrcSpan $1 >>= (\s -> return $ Bound () s (NullExpr () s) (NullExpr () s)) }
@@ -1089,7 +1102,7 @@ action_stmt
 | srcloc TEXT				          {% getSrcSpan $1 >>= (\s -> return $ TextStmt () s $2) }
 
 format_stmt :: { Fortran A0 }
-format_stmt : srcloc FORMAT '(' io_control_spec_list ')' {% getSrcSpan $1 >>= (\s -> return $ Format () $4) }
+format_stmt : srcloc FORMAT io_control_spec_list_d {% getSrcSpan $1 >>= (\s -> return $ Format () $3) }
 
 call_stmt :: { Fortran A0 }
 call_stmt
@@ -1099,7 +1112,7 @@ call_stmt
 
 call_name :: { Expr A0 }
 call_name
-: srcloc ID                 {% (getSrcSpan $1) >>= (\s -> return $ Var () s [(VarName () $2,[])]) }  
+: srcloc id2                 {% (getSrcSpan $1) >>= (\s -> return $ Var () s [(VarName () $2,[])]) }  
 
 actual_arg_spec_list :: { Expr A0 }
 actual_arg_spec_list
@@ -1134,6 +1147,7 @@ if_then_stmt
 else_if_then_stmt :: { Expr A0 }
 else_if_then_stmt 
   : ELSEIF '(' logical_expr ')' THEN newline         { $3 }
+  | ELSE IF '(' logical_expr ')' THEN newline         { $4 }
 
 
 --if_rest :: { ([(Expr A0,Fortran)],Maybe Fortran) }
@@ -1498,23 +1512,48 @@ read_stmt
 | srcloc READ '(' io_control_spec_list ')'                 {% getSrcSpan $1 >>= (\s -> return $ ReadS () s $4 []) }
 
 
+io_control_spec_list_d :: { [Spec A0] }
+io_control_spec_list_d :
+  '(/' ',' io_control_spec_list_d2      { (Delimiter ()):$3 }
+| '('      io_control_spec_list_d2      { $2 }
+
+{-
+
+| '(/' ',' io_control_spec_list '/)'     { ((Delimiter ()):$3) ++ [Delimiter ()] } 
+| '('      io_control_spec_list '/)'     { $2 ++ [Delimiter ()] }
+  '(/' ',' io_control_spec_list ',' '/)' { ((Delimiter ()):$3) ++ [Delimiter ()] } 
+| '('      io_control_spec_list ',' '/)' { $2 ++ [Delimiter ()] }
+ -}
+
+
+io_control_spec_list_d2 :: { [Spec A0] }
+io_control_spec_list_d2 : 
+  io_control_spec ',' io_control_spec_list_d2  { $1 ++ $3 }
+| '/)'                                         { [Delimiter ()] }
+| io_control_spec ')'                          { $1 }
+| io_control_spec '/)'                         { $1 ++ [Delimiter ()] }
+
+
 io_control_spec_list :: { [Spec A0] }
-io_control_spec_list
-: io_control_spec ',' io_control_spec_list      { $1 : $3 }
-| io_control_spec                               { [$1] }
+io_control_spec_list : 
+  io_control_spec ',' io_control_spec_list  { $1 ++ $3 }
+| io_control_spec                           { $1 }
 
 -- (unit, fmt = format), (rec, advance = expr), (nml, iostat, id = var), (err, end, eor = label)
 
 
-io_control_spec :: { Spec A0 } 
+io_control_spec :: { [Spec A0] } 
 io_control_spec
-: --format                              { NoSpec () $1 }
-'*'                                    {% getSrcSpanNull >>= (\s -> return $ NoSpec () (Var () s [(VarName () "*", [])])) }
-| END '=' label                          { End () $3 }
-| io_control_spec_id                     { $1 }
-| NUM                                    {% getSrcSpanNull >>= (\s -> return $ Number () (Con () s $1)) }
-| floating_spec                          { $1 }
-| STR                         { StringLit () $1 }
+: --format                           { [NoSpec () $1] }
+  '/'                                { [Delimiter ()] }
+| '*'                                {% getSrcSpanNull >>= (\s -> return $ [NoSpec () (Var () s [(VarName () "*", [])])]) }
+| STR                                { [StringLit () $1] }
+| STR '/'                            { [StringLit () $1, Delimiter ()] }
+| END '=' label                      { [End () $3] }
+| io_control_spec_id                 { [$1] }
+| NUM                                {% getSrcSpanNull >>= (\s -> return $ [Number () (Con () s $1)]) }
+| floating_spec                      { [$1] }
+
 
 floating_spec :: { Spec A0 }
 floating_spec : DATA_DESC      {% getSrcSpanNull >>= (\s -> return $ Floating () (NullExpr () s) (Con () s $1) ) }

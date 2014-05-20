@@ -24,7 +24,7 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @name = ($letter | $underscore) ($letter | $digit | $underscore | $currency_symbol | $at_sign)*
 @digit_string = $digit+
 @signed_digit_string = $sign? @digit_string
-@line_space = ($white # \n)*
+@line_space = ($white # \n)* 
 
 @kind_param = @digit_string | @name
 @int_literal_constant = @digit_string (\_ @kind_param)?
@@ -34,6 +34,8 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @d = @int_literal_constant
 @e = @int_literal_constant
 @data_edit_desc = (("I"|"B"|"O"|"Z") @w ( \. @m)?) | "F" @w \. @d | (("E"|"EN"|"ES"|"G") @w \. @d ("E" @e)?) | "L" @w | "A" @w? | @w "X" | "D" @w \. @d ("E" @e)? | "R" @w | "Q"
+
+@continuation_line_alt = \n$white*"&" | \n$white*"$" | \n$white*"+"
 
 @binary_constant_prefix = ("B" \' $digit+ \')      | ("B" \" $digit+ \")
 @octal_constant_prefix  = ("O" \' $digit+ \')      | ("O" \" $digit+ \")
@@ -86,6 +88,8 @@ tokens :-
   "="				{ \s -> OpEquals }
   \"(. # \")*\"			{ \s -> StrConst s }
   \'(. # \')*\'			{ \s -> StrConst s }
+  \'(. # \')* @continuation_line_alt (. # \')*\'  { \s -> StrConst  (cutOutContLine s) }
+
   "Z"\'(. # \')*\'		{ \s -> LitConst 'z' s }
   "z"\'(. # \')*\'		{ \s -> LitConst 'z' s }
   \'				{ \s -> SingleQuote }
@@ -96,9 +100,7 @@ tokens :-
   "$"				{ \s -> Dollar }
   "NULL()"			{ \s -> Key "null" }
   "&"				; -- ignore & anywhere
-  \n$white*"&"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and & (continuation line)
-  \n$white*"$"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and $ (continuation line)
-  \n$white*"+"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and $ (continuation line)
+  @continuation_line_alt        { \s -> ContLineAlt } 
   "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
   "!".*$			;
   "%"				{ \s -> Percent }
@@ -123,6 +125,21 @@ tokens :-
 {
 -- Each action has type :: String -> Token
 		
+-- Fixes continuation lines in the middle of strings - removes the continuation line part
+cutOutContLine cs = [head cs] ++ (reverse (cutOut cs' (Just []))) ++ [head cs]
+	               where cs' = (take (length cs - 2) (drop 1 cs))
+
+cutOut [] Nothing = []
+cutOut [] (Just xs) = xs       	  	    
+cutOut ('&':cs) Nothing = cutOut cs (Just [])
+cutOut ('$':cs) Nothing = cutOut cs (Just [])
+cutOut ('+':cs) Nothing = cutOut cs (Just [])
+cutOut (' ':cs) Nothing = cutOut cs Nothing
+cutOut ('\t':cs) Nothing = cutOut cs Nothing
+cutOut ('\r':'\n':cs) (Just xs) = (cutOut cs Nothing) ++ xs
+cutOut ('\n':cs) (Just xs) = (cutOut cs Nothing) ++ xs
+cutOut (c:cs) (Just xs) = cutOut cs (Just (c:xs))
+
 
 -- The token type:
 data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd | OpSub | OpConcat
