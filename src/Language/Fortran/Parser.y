@@ -128,7 +128,7 @@ import Data.Char (toLower)
  OPTIONAL 		{ Key "optional" }
  OUT 			{ Key "out" }
  PARAMETER 		{ Key "parameter" }
--- PAUSE 		{ Key "pause" }
+ PAUSE 		        { Key "pause" }
  POINTER 		{ Key "pointer" }
 -- PRECISION 		{ Key "precision" }
  PRINT 			{ Key "print" }
@@ -1099,11 +1099,15 @@ action_stmt
   | print_stmt                                    { $1 }
   | read_stmt                                     { $1 }
   | return_stmt                                   { $1 }
+  | pause_stmt                                    { $1 }
   | rewind_stmt                                   { $1 }
   | stop_stmt                                     { $1 }
   | where_stmt                                    { $1 }
   | write_stmt                                    { $1 }
 | srcloc TEXT				          {% getSrcSpan $1 >>= (\s -> return $ TextStmt () s $2) }
+
+pause_stmt :: { Fortran A0 }
+pause_stmt : srcloc PAUSE STR {% getSrcSpan $1 >>= (\s -> return $ Pause () s $3) }
 
 format_stmt :: { Fortran A0 }
 format_stmt : srcloc FORMAT io_control_spec_list_d {% getSrcSpan $1 >>= (\s -> return $ Format () $3) }

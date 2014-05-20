@@ -165,7 +165,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | Goto p SrcSpan String
                 | Nullify p SrcSpan [(Expr p)]
                 | Inquire p SrcSpan [Spec p] [(Expr p)]
-                | Pause p SrcSpan [Spec p]
+                | Pause p SrcSpan String
                 | Rewind p SrcSpan [Spec p]
                 | Stop p SrcSpan (Expr p)
                 | Where p SrcSpan (Expr p) (Fortran p)

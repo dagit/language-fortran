@@ -29,13 +29,15 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @kind_param = @digit_string | @name
 @int_literal_constant = @digit_string (\_ @kind_param)?
 
+@comment =   "!".*$ | "!".*$ @comment
+
 @w = @int_literal_constant
 @m = @int_literal_constant
 @d = @int_literal_constant
 @e = @int_literal_constant
 @data_edit_desc = (("I"|"B"|"O"|"Z") @w ( \. @m)?) | "F" @w \. @d | (("E"|"EN"|"ES"|"G") @w \. @d ("E" @e)?) | "L" @w | "A" @w? | @w "X" | "D" @w \. @d ("E" @e)? | "R" @w | "Q"
 
-@continuation_line_alt = \n$white*"&" | \n$white*"$" | \n$white*"+"
+@continuation_line_alt = \n$white*"&" | \n$white*"$" | \n$white*"+" | \n @comment \n $white*"&"
 
 @binary_constant_prefix = ("B" \' $digit+ \')      | ("B" \" $digit+ \")
 @octal_constant_prefix  = ("O" \' $digit+ \')      | ("O" \" $digit+ \")
@@ -102,7 +104,7 @@ tokens :-
   "&"				; -- ignore & anywhere
   @continuation_line_alt        { \s -> ContLineAlt } 
   "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
-  "!".*$			;
+  @comment                      ;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
   "}"				{ \s -> RBrace }
