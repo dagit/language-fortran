@@ -93,6 +93,7 @@ data Decl     p = Decl           p SrcSpan [(Expr p, Expr p, Maybe Int)] (Type p
                 | Namelist       p [(Expr p, [Expr p])]                     -- namelist declaration
                 | DataDecl       p (DataForm p)
                 | Equivalence    p SrcSpan [(Expr p)]
+                | AttrStmt       p (Attr p) [(Expr p, Expr p, Maybe Int)] 
                 | AccessStmt     p (Attr p) [GSpec p]                       -- access stmt
                 | ExternalStmt   p [String]                                 -- external stmt
                 | Interface      p (Maybe (GSpec p)) [InterfaceSpec p]      -- interface declaration
@@ -164,6 +165,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | Goto p SrcSpan String
                 | Nullify p SrcSpan [(Expr p)]
                 | Inquire p SrcSpan [Spec p] [(Expr p)]
+                | Pause p SrcSpan [Spec p]
                 | Rewind p SrcSpan [Spec p]
                 | Stop p SrcSpan (Expr p)
                 | Where p SrcSpan (Expr p) (Fortran p)

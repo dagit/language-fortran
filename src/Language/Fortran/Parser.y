@@ -498,6 +498,7 @@ intent_spec
 specification_stmt :: { Decl A0 }
 specification_stmt
   : access_stmt            { $1 }
+  | attr_stmt              { $1 }
 --  | allocatable_stmt       { $1 }
   | common_stmt            { $1 }
 | data_stmt              { DataDecl () $1 }
@@ -627,6 +628,9 @@ component_attr_spec
 :  POINTER              { ([],[Pointer ()]) }
 | dim_spec              { ($1,[]) }
 
+attr_stmt :: { Decl A0 }
+attr_stmt : attr_spec '(' entity_decl_list  ')'  { AttrStmt () (head $ snd $1) ($3 ++ (map (\(x, y) -> (x, y, Nothing)) (fst $1))) }
+
 access_stmt :: { Decl A0 }
 access_stmt
 : access_spec '::' access_id_list  { AccessStmt () $1 $3 }
@@ -753,7 +757,7 @@ function_stmt
 subname :: { SubName A0 }
 subname
 : ID	   { SubName () $1 }
-| COMMON   { SubName () "common" }  -- "common" is allowed as a subname
+| id_keywords { SubName () $1 }
   
 prefix :: { (BaseType A0, Expr A0, Expr A0) }
 prefix
@@ -994,7 +998,7 @@ block_do_construct
 			    s       <- getSrcSpan $1;
 			    if (n == $3) then 
 				return $ For () s (fst4 $4) (snd4 $4) (trd4 $4) (frh4 $4) fs
-                            else parseError "DO/CONTINUE labels don't match"
+                            else return $ NullStmt undefined undefined --  parseError $ "DO/CONTINUE labels don't match"
                           } }
 
 nonlabel_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }

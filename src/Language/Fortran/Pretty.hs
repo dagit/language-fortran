@@ -172,6 +172,7 @@ instance (Indentor (Decl p),
   outputF (Namelist _ ns) = ind 1++"namelist "++show_namelist ns++"\n"
   outputF (DataDecl _ ds) = ind 1++ (outputG ds) ++"\n"
   outputF t@(Equivalence  _ _ vs) = (indR t 1)++"equivlance ("++(concat (intersperse "," (map outputF vs))) ++ ")\n"
+  outputF (AttrStmt _ p gs) = ind 1++outputG p ++ " (" ++asSeq id (map showDV gs) ++ ") \n"
   outputF (AccessStmt _ p []) = ind 1++outputG p ++ "\n"
   outputF (AccessStmt _ p gs) = ind 1++outputG p ++ " :: " ++ (concat . intersperse ", " . map outputG) gs++"\n"
   outputF (ExternalStmt _ xs)  = ind 1++"external :: " ++ (concat (intersperse "," xs)) ++ "\n"
