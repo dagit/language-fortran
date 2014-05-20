@@ -89,9 +89,9 @@ data Uses p  = Use p (String, Renames) (Uses p) p  -- (second 'p' let's you anno
 data Block    p = Block p  (UseBlock p) (Implicit p) SrcSpan (Decl p) (Fortran p)
                 deriving (Show, Functor, Typeable, Data, Eq)
 
-data Decl     p = Decl           p SrcSpan [(Expr p, Expr p)] (Type p)      -- declaration stmt
+data Decl     p = Decl           p SrcSpan [(Expr p, Expr p, Maybe Int)] (Type p)      -- declaration stmt
                 | Namelist       p [(Expr p, [Expr p])]                     -- namelist declaration
-                | Data           p [(Expr p, Expr p)]                       -- data declaration
+                | DataDecl       p (DataForm p)
                 | Equivalence    p SrcSpan [(Expr p)]
                 | AccessStmt     p (Attr p) [GSpec p]                       -- access stmt
                 | ExternalStmt   p [String]                                 -- external stmt
@@ -136,7 +136,9 @@ data InterfaceSpec p = FunctionInterface   p (SubName p) (Arg p) (Uses p) (Impli
                      | SubroutineInterface p (SubName p) (Arg p) (Uses p) (Implicit p) (Decl p)
                      | ModuleProcedure     p [(SubName p)]
                        deriving (Show, Functor, Typeable, Data, Eq)
-				   
+		
+data DataForm p = Data p [(Expr p, Expr p)] deriving (Show, Functor, Typeable, Data, Eq) -- data declaration
+		   
 data IntentAttr p = In p
                   | Out p
                   | InOut p
@@ -153,6 +155,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | Close p SrcSpan [Spec p]
                 | Continue p SrcSpan 
                 | Cycle p SrcSpan String
+                | DataStmt p SrcSpan (DataForm p)
                 | Deallocate p SrcSpan [(Expr p)] (Expr p)
                 | Endfile p SrcSpan [Spec p]
                 | Exit p SrcSpan String
@@ -246,6 +249,7 @@ data Spec     p = Access   p (Expr p)
               | Sequential p (Expr p)
               | Size       p (Expr p)
               | Status     p (Expr p)
+              | StringLit     p String 
               | Unit       p (Expr p)
               | WriteSp    p (Expr p)
                 deriving (Show, Functor,Typeable,Data, Eq)
@@ -393,7 +397,7 @@ instance Tagged ProgUnit where
 instance Tagged Decl where
     tag (Decl x _ _ _)          = x
     tag (Namelist x _)        = x
-    tag (Data x _)            = x
+    tag (DataDecl x _)        = x
     tag (AccessStmt x _ _)    = x
     tag (ExternalStmt x _)    = x
     tag (Interface x _ _)     = x
@@ -405,6 +409,9 @@ instance Tagged Decl where
     tag (TextDecl x _)        = x
     tag (NullDecl x _)        = x
 
+instance Tagged DataForm where
+    tag (Data x _)         = x
+
 instance Tagged Fortran where
     tag (Assg x s e1 e2)        = x
     tag (For x s v e1 e2 e3 fs) = x
@@ -413,6 +420,7 @@ instance Tagged Fortran where
     tag (Allocate x sp e1 e2)   = x
     tag (Backspace x sp _)      = x
     tag (Call x sp e as)        = x
+    tag (DataStmt x sp _)       = x
     tag (Open x sp s)           = x
     tag (Close x sp s)          = x 
     tag (Continue x sp)         = x

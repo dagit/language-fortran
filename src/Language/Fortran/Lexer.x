@@ -33,7 +33,7 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @m = @int_literal_constant
 @d = @int_literal_constant
 @e = @int_literal_constant
-@data_edit_desc = (("I"|"B"|"O"|"Z") @w ( \. @m)?) | "F" @w \. @d | (("E"|"EN"|"ES"|"G") @w \. @d ("E" @e)?) | "L" @w | "A" @w? | "D" @w \. @d ("E" @e)? | "R" @w | "Q"
+@data_edit_desc = (("I"|"B"|"O"|"Z") @w ( \. @m)?) | "F" @w \. @d | (("E"|"EN"|"ES"|"G") @w \. @d ("E" @e)?) | "L" @w | "A" @w? | @w "X" | "D" @w \. @d ("E" @e)? | "R" @w | "Q"
 
 @binary_constant_prefix = ("B" \' $digit+ \')      | ("B" \" $digit+ \")
 @octal_constant_prefix  = ("O" \' $digit+ \')      | ("O" \" $digit+ \")
@@ -98,6 +98,7 @@ tokens :-
   "&"				; -- ignore & anywhere
   \n$white*"&"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and & (continuation line)
   \n$white*"$"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and $ (continuation line)
+  \n$white*"+"       		{ \s -> ContLineAlt } -- ignore '\n' followed by spaces and $ (continuation line)
   "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
   "!".*$			;
   "%"				{ \s -> Percent }

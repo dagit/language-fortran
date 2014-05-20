@@ -151,11 +151,15 @@ instance (OutputG (Fortran p) v, OutputG (Decl p) v, OutputG (Implicit p) v, Alt
   outputF (Block _ (UseBlock us _) i sp ds f) = showUse us++outputG i++(outputG ds)++outputG f
 
 
+instance (OutputG (Expr p) v) => OutputF (DataForm p) v where
+  outputF (Data _ ds) = "data "++(concat (intersperse "\n" (map show_data ds))) 
+
 instance (Indentor (Decl p), 
           OutputG (ArgList p) v,
           OutputG (Attr p) v,
           OutputG (BinOp p) v,
           OutputG (Decl p) v,
+          OutputG (DataForm p) v,
           OutputG (Expr p) v, 
           OutputG (GSpec p) v, 
           OutputG (InterfaceSpec p) v, 
@@ -166,7 +170,7 @@ instance (Indentor (Decl p),
            Alts v) => OutputF (Decl p) v where
   outputF x@(Decl _ _ vs t)  = (indR x 1)++outputG t++" :: "++asSeq id (map showDV vs)++"\n"
   outputF (Namelist _ ns) = ind 1++"namelist "++show_namelist ns++"\n"
-  outputF (Data _ ds) = ind 1++"data "++(concat (intersperse "\n" (map show_data ds)))  ++"\n"
+  outputF (DataDecl _ ds) = ind 1++ (outputG ds) ++"\n"
   outputF t@(Equivalence  _ _ vs) = (indR t 1)++"equivlance ("++(concat (intersperse "," (map outputF vs))) ++ ")\n"
   outputF (AccessStmt _ p []) = ind 1++outputG p ++ "\n"
   outputF (AccessStmt _ p gs) = ind 1++outputG p ++ " :: " ++ (concat . intersperse ", " . map outputG) gs++"\n"
@@ -176,7 +180,7 @@ instance (Indentor (Decl p),
                                                      Just n -> "/" ++ n ++ "/ "
                                                      Nothing -> "") ++ (concat (intersperse "," (map outputF exps))) ++ "\n"
   outputF (Interface _ Nothing  is) = ind 1 ++ "interface " ++ outputG is ++ ind 1 ++ "end interface\n"
-  outputF (DerivedTypeDef _  _ n as ps ds) = ind 1 ++ "type " ++ showAttrs as ++  " :: " ++ outputG n ++ "\n" ++ (concat (intersperse "\n" (map (outputG) ps))) ++ (if (length ps > 0) then "\n" else "") ++ (concatMap (((ind 2) ++) . outputG) ds) ++ ind 1 ++ "end type " ++ outputG n ++ "\n\n"
+  outputF (DerivedTypeDef _  _ n as ps ds) = ind 1 ++ "type " ++ outputFList as ++  " :: " ++ outputG n ++ "\n" ++ (concat (intersperse "\n" (map (outputG) ps))) ++ (if (length ps > 0) then "\n" else "") ++ (concatMap (((ind 2) ++) . outputG) ds) ++ ind 1 ++ "end type " ++ outputG n ++ "\n\n"
   outputF (Include _ i)  = "include "++outputG i
   outputF (DSeq _ d d')  = outputG d++outputG d'
   outputF (NullDecl _ _)    = ""
@@ -187,8 +191,10 @@ show_data     ((xs,ys)) = "/" ++  outputG xs ++ "/" ++ outputG ys
 
 -- showDV :: (Expr,Expr) -> String
 
-showDV (v, NullExpr _ _) = outputF v
-showDV (v,e) = outputF v++" = "++outputF e
+showDV (v, NullExpr _ _, Just n)  = (outputF v) ++ "*" ++ show n
+showDV (v, NullExpr _ _, Nothing) = outputF v
+showDV (v,e,Nothing)              = outputF v++" = "++outputF e
+showDV (v,e,Just n)              = (outputF v) ++ "*" ++ show n ++ " = "++(outputF e)
 
 instance (OutputG (ArgList p) v, 
           OutputG (BinOp p) v, 
@@ -197,18 +203,18 @@ instance (OutputG (ArgList p) v,
           OutputG (Expr p) v,
           OutputG (VarName p) v,
           Alts v) => OutputF (Type p) v where
-  outputF (BaseType _ bt as (NullExpr _ _)  (NullExpr _ _))   = outputG bt++showAttrs as
-  outputF (BaseType _ bt as (NullExpr _ _) e')          = outputG bt++" (len="++outputG e'++")"++showAttrs as
-  outputF (BaseType _ bt as e (NullExpr _ _))           = outputG bt++" (kind="++outputG e++")"++showAttrs as
-  outputF (BaseType _ bt as e               e')                = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++showAttrs as
-  outputF (ArrayT _ [] bt as (NullExpr _ _) (NullExpr _ _))   = outputG bt++showAttrs as
-  outputF (ArrayT _ [] bt as (NullExpr _ _) e')         = outputG bt++" (len="++outputG e'++")"++showAttrs as
-  outputF (ArrayT _ [] bt as e (NullExpr _ _))          = outputG bt++" (kind="++outputG e++")"++showAttrs as
-  outputF (ArrayT _ [] bt as e                e')              = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++showAttrs as
-  outputF (ArrayT _ rs bt as (NullExpr _ _)  (NullExpr _ _))  = outputG bt++" , dimension ("++showRanges rs++")"++showAttrs as
-  outputF (ArrayT _ rs bt as (NullExpr _ _) e')         = outputG bt++" (len="++outputG e'++")"++" , dimension ("++showRanges rs++")"++showAttrs as
-  outputF (ArrayT _ rs bt as e (NullExpr _ _))          = outputG bt++" (kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++showAttrs as
-  outputF (ArrayT _ rs bt as e               e')               = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++showAttrs as
+  outputF (BaseType _ bt as (NullExpr _ _)  (NullExpr _ _))   = outputG bt++outputFList as
+  outputF (BaseType _ bt as (NullExpr _ _) e')          = outputG bt++" (len="++outputG e'++")"++outputFList as
+  outputF (BaseType _ bt as e (NullExpr _ _))           = outputG bt++" (kind="++outputG e++")"++outputFList as
+  outputF (BaseType _ bt as e               e')                = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++outputFList as
+  outputF (ArrayT _ [] bt as (NullExpr _ _) (NullExpr _ _))   = outputG bt++outputFList as
+  outputF (ArrayT _ [] bt as (NullExpr _ _) e')         = outputG bt++" (len="++outputG e'++")"++outputFList as
+  outputF (ArrayT _ [] bt as e (NullExpr _ _))          = outputG bt++" (kind="++outputG e++")"++outputFList as
+  outputF (ArrayT _ [] bt as e                e')              = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++outputFList as
+  outputF (ArrayT _ rs bt as (NullExpr _ _)  (NullExpr _ _))  = outputG bt++" , dimension ("++showRanges rs++")"++outputFList as
+  outputF (ArrayT _ rs bt as (NullExpr _ _) e')         = outputG bt++" (len="++outputG e'++")"++" , dimension ("++showRanges rs++")"++outputFList as
+  outputF (ArrayT _ rs bt as e (NullExpr _ _))          = outputG bt++" (kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++outputFList as
+  outputF (ArrayT _ rs bt as e               e')               = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++outputFList as
 
 
 instance Alts v => OutputF (Attr p) v where --new
@@ -365,6 +371,7 @@ instance (OutputG (Expr p) v, Alts v) => OutputF (Spec p) v where
   outputF (Sequential    _ s) = "sequential = "++outputG s
   outputF (Size          _ s) = "size = "++outputG s
   outputF (Status        _ s) = "status = "++outputG s
+  outputF (StringLit        _ s) = "'" ++ s ++ "'"
   outputF (Unit _ s)          = "unit = "++outputG s
 
 
@@ -504,8 +511,8 @@ optTuple xs = asTuple outputF xs
 -- indent and showInd enable indented printing
 -- 
 
-showAttrs :: (Alts v, ?variant :: v, OutputF (Attr p) v) => [Attr p] -> String
-showAttrs  = concat . map (", "++) . map (outputF)
+outputFList :: (Alts v, ?variant :: v, OutputF a v) => [a] -> String
+outputFList  = concat . map (", "++) . map (outputF)
 
 
 

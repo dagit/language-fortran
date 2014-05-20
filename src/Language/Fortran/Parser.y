@@ -368,15 +368,19 @@ attr_spec_list
   : attr_spec_list ',' attr_spec                  { (fst $1++fst $3,snd $1++snd $3) }
   | {- empty -}                                   { ([],[]) }
 
-entity_decl_list :: { [(Expr A0, Expr A0)] }
+entity_decl_list :: { [(Expr A0, Expr A0, Maybe Int)] }
 entity_decl_list
 : entity_decl ',' entity_decl_list         { $1:$3 }
 | entity_decl                              { [$1] }
 
-entity_decl :: { (Expr A0, Expr A0) }
+entity_decl :: { (Expr A0, Expr A0, Maybe Int) }
 entity_decl
-  : srcloc ID '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s [(VarName () $2,[])], $4)) }
-  | variable             {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s)) }  
+: srcloc ID '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s [(VarName () $2,[])], $4, Nothing)) }
+| variable             {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Nothing)) }  
+| variable '*' NUM     {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Just $ read $3)) }  
+
+-- | id2                  {% getSrcSpanNull >>= (\s -> return $ (Var () s [(VarName () $1,[])], NullExpr () s, Nothing)) }  
+ 
 
 object_name :: { String }
 object_name
@@ -496,7 +500,7 @@ specification_stmt
   : access_stmt            { $1 }
 --  | allocatable_stmt       { $1 }
   | common_stmt            { $1 }
-  | data_stmt              { $1 }
+| data_stmt              { DataDecl () $1 }
   | equivalence_stmt              { $1 }
 --  | dimension_stmt         { $1 }
   | external_stmt          { $1 }
@@ -644,7 +648,7 @@ generic_spec
 | OPERATOR '(' defined_operator ')'   { GOper () $3 }
 | ASSIGNMENT '(' '=' ')'              { GAssg () }
   
-data_stmt :: { Decl A0 }
+data_stmt :: { DataForm A0 }
 data_stmt
 : DATA data_stmt_set_list		{ Data () $2 }
   
@@ -689,8 +693,16 @@ name_list
 
 id2 :: { String } -- hack len
 id2 : ID  { $1 }
-    | LEN { "len" }
-    | COMMON { "common" } -- allow common as a subname (can happen)
+    | id_keywords { $1 }
+
+id_keywords :: { String } -- identifiers which became keywords, but can still be used as variables
+id_keywords : COMMON { "common" } -- allow common as a subname (can happen)
+	    | id_keywords_2 { $1 }
+
+id_keywords_2 :: { String }
+id_keywords_2 : IN   { "in"   } 
+              | OUT  { "out"  }
+              | LEN  { "len"  }
 	
 defined_operator :: { BinOp A0 }
 defined_operator
@@ -785,6 +797,7 @@ scalar_variable_name
 : ID '(' section_subscript_list ')' { (VarName () $1, $3) }
 | ID '(' ')'                        {% getSrcSpanNull >>= (\s -> return $ (VarName () $1, [NullExpr () s])) }
 | ID                                { (VarName () $1, []) }
+| id_keywords_2          {% getSrcSpanNull >>= (\s -> return $ (VarName () $1, [NullExpr () s])) }   
 
 -- | TYPE                           { (VarName () "type", []) } -- a bit of a hack but 'type' allowed as var name
 --                                                              --  but causes REDUCE REDUCE conflicts! 
@@ -1051,6 +1064,7 @@ action_stmt
   | close_stmt                                    { $1 }
   | continue_stmt                                 { $1 }
   | cycle_stmt                                    { $1 }
+| srcloc data_stmt                              {% getSrcSpan $1 >>= (\s -> return $ DataStmt () s $2) }
   | deallocate_stmt                               { $1 }
   | endfile_stmt                                  { $1 }
 --  | end_function_stmt
@@ -1500,6 +1514,7 @@ io_control_spec
 | io_control_spec_id                     { $1 }
 | NUM                                    {% getSrcSpanNull >>= (\s -> return $ Number () (Con () s $1)) }
 | floating_spec                          { $1 }
+| STR                         { StringLit () $1 }
 
 floating_spec :: { Spec A0 }
 floating_spec : DATA_DESC      {% getSrcSpanNull >>= (\s -> return $ Floating () (NullExpr () s) (Con () s $1) ) }
