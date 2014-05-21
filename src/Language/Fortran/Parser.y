@@ -406,6 +406,7 @@ type_spec
 | COMPLEX '*' length_value                      {% getSrcSpanNull >>= (\s -> return $  (Complex (), $3, NullExpr () s)) }
 | COMPLEX                                       {% getSrcSpanNull >>= (\s -> return $  (Complex (),NullExpr () s, NullExpr () s)) }
 | CHARACTER char_selector                       { (Character (), snd $2, fst $2) }
+| CHARACTER '*' length_value                    {% getSrcSpanNull >>= (\s -> return $  (Character (), $3, NullExpr () s)) } 
 | CHARACTER                                     {% getSrcSpanNull >>= (\s -> return $  (Character (), NullExpr () s, NullExpr () s)) }
 | LOGICAL kind_selector                         {% getSrcSpanNull >>= (\s -> return $  (Logical (), $2, NullExpr () s)) }
 | LOGICAL '*' length_value                      {% getSrcSpanNull >>= (\s -> return $  (Logical (), $3, NullExpr () s)) }
@@ -447,9 +448,27 @@ dim_spec
   : DIMENSION '(' array_spec ')' { $3 }
   | DIMENSION '(' ')'            { [] }  -- modified by Zhe on 11/14/2004
 
+dim_spec_p :: { [(Expr A0, Expr A0)] }
+dim_spec_p
+  : DIMENSION array_spec { $2 }
+
+attr_spec_p :: { ([(Expr A0, Expr A0)],[Attr A0]) }
+attr_spec_p :
+  PARAMETER                                      { ([],[Parameter ()]) }
+| access_spec                                    { ([],[$1]) }
+| ALLOCATABLE                                    { ([],[Allocatable ()]) }
+| EXTERNAL                                       { ([],[External ()]) }
+| INTENT '(' intent_spec ')'                     { ([],[Intent () $3]) }
+| INTRINSIC                                      { ([],[Intrinsic ()]) }
+| OPTIONAL                                       { ([],[Optional ()]) }
+| POINTER                                        { ([],[Pointer ()]) }
+| SAVE                                           { ([],[Save ()]) }
+| TARGET                                         { ([],[Target ()]) }
+| VOLATILE                                       { ([],[Volatile ()]) }
+
 attr_spec :: { ([(Expr A0, Expr A0)],[Attr A0]) }
 attr_spec
-: dim_spec                                       { ($1,[]) }
+: dim_spec                                       { ([],[Dimension () $1]) }
 | PARAMETER                                      { ([],[Parameter ()]) }
 | access_spec                                    { ([],[$1]) }
 | ALLOCATABLE                                    { ([],[Allocatable ()]) }
@@ -467,10 +486,11 @@ access_spec
 : PUBLIC            { Public () }
 | PRIVATE           { Private () }
 
+
+
 array_spec :: { [(Expr A0, Expr A0)] }
 array_spec
   : explicit_shape_spec_list                      { map expr2array_spec $1 }
-
 
 explicit_shape_spec_list :: { [Expr A0] }
 explicit_shape_spec_list
@@ -629,7 +649,9 @@ component_attr_spec
 | dim_spec              { ($1,[]) }
 
 attr_stmt :: { Decl A0 }
-attr_stmt : attr_spec '(' entity_decl_list  ')'  { AttrStmt () (head $ snd $1) ($3 ++ (map (\(x, y) -> (x, y, Nothing)) (fst $1))) }
+attr_stmt : attr_spec_p '(' entity_decl_list  ')'  { AttrStmt () (head $ snd $1) ($3 ++ (map (\(x, y) -> (x, y, Nothing)) (fst $1))) } 
+          | attr_spec_p   { AttrStmt () (head $ snd $1) ((map (\(x, y) -> (x, y, Nothing)) (fst $1))) } 
+| dim_spec_p  { AttrStmt () (Dimension () $1) [] } 
 
 access_stmt :: { Decl A0 }
 access_stmt
@@ -682,7 +704,7 @@ data_stmt_value_list
 
 data_stmt_value :: { Expr A0 }
 data_stmt_value
-  : primary		                 	{ $1 }
+  : primaryP		                 	{ $1 }
   
   
 external_stmt :: { Decl A0 }
@@ -893,6 +915,13 @@ level_1_expr
 : srcloc '-' primary               {% getSrcSpan $1 >>= (\s -> return $ Unary () s (UMinus ()) $3) }
 | srcloc '.NOT.' primary            {% getSrcSpan $1 >>= (\s -> return $ Unary () s (Not ()) $3) }
 | primary                          { $1 }
+
+primaryP :: { Expr A0 }
+primaryP :  
+   srcloc NUM '*' primary   {% getSrcSpan $1 >>= (\s -> return $ Bin () s (Mul ()) (Con () s $2) $4) }
+|  srcloc '-' primary               {% getSrcSpan $1 >>= (\s -> return $ Unary () s (UMinus ()) $3) }
+|  primary                  { $1 }
+
 
 primary :: { Expr A0 }
 primary 
@@ -1151,6 +1180,7 @@ else_if_stmt
 if_then_stmt :: { Expr A0 }
 if_then_stmt 
   : IF '(' logical_expr ')' THEN newline             { $3 }
+ 
 
 else_if_then_stmt :: { Expr A0 }
 else_if_then_stmt 
@@ -1165,7 +1195,17 @@ else_if_then_stmt
 
 if_construct :: { Fortran A0 }
 if_construct
-: srcloc if_then_stmt block end_if_stmt                  
+: 
+  -- FORTRAN 77 numerical comparison IFs
+
+  srcloc IF '(' logical_expr ')' NUM ',' NUM ',' NUM 
+  {% getSrcSpan $1 >>= (\s -> return $ If () s (Bin () s (RelLT ()) $4 (Con () s "0")) (Goto () s $6)
+			[(Bin () s (RelEQ ()) $4 (Con () s "0"), (Goto () s $8)),
+                         (Bin () s (RelGT ()) $4 (Con () s "0"), (Goto () s $10))] Nothing) }
+
+  -- Other If forms
+
+| srcloc if_then_stmt block end_if_stmt                  
              {% getSrcSpan $1 >>= (\s -> return $ If () s $2 $3 [] Nothing) }
 
 | srcloc if_then_stmt block else_if_list end_if_stmt 

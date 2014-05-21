@@ -29,7 +29,7 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @kind_param = @digit_string | @name
 @int_literal_constant = @digit_string (\_ @kind_param)?
 
-@comment =   "!".*$ | "!".*$ @comment
+@comment = ("!".*\n)
 
 @w = @int_literal_constant
 @m = @int_literal_constant
@@ -37,7 +37,7 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @e = @int_literal_constant
 @data_edit_desc = (("I"|"B"|"O"|"Z") @w ( \. @m)?) | "F" @w \. @d | (("E"|"EN"|"ES"|"G") @w \. @d ("E" @e)?) | "L" @w | "A" @w? | @w "X" | "D" @w \. @d ("E" @e)? | "R" @w | "Q"
 
-@continuation_line_alt = \n$white*"&" | \n$white*"$" | \n$white*"+" | \n @comment \n $white*"&"
+@continuation_line_alt = \n$white*"&" | \n$white*"$" | \n$white*"+" 
 
 @binary_constant_prefix = ("B" \' $digit+ \')      | ("B" \" $digit+ \")
 @octal_constant_prefix  = ("O" \' $digit+ \')      | ("O" \" $digit+ \")
@@ -57,7 +57,7 @@ $exponent_letter = [EeDd]
 
 tokens :-
   \n\# .* $			{ \s -> Text s }
-  \n(C|c).*$			; -- Fortran 77 style comment
+  \n(C|c).*$			{ \s -> ContLineAlt }  -- Fortran 77 style comment
   \n				{ \s -> NewLine }
   ($white # \n)+			;
   "#"				{ \s -> Hash }
@@ -65,19 +65,19 @@ tokens :-
   "=>"				{ \s -> Arrow }
   "**"				{ \s -> OpPower }
   "//"	 			{ \s -> OpConcat }
-  ".EQ."    | ".eq." | "=="	{ \s -> OpEQ }
-  ".NE."    | ".ne." | "/="	{ \s -> OpNE }
-  ".LE."    | ".le." | "<="	{ \s -> OpLE }
-  ".GE."    | ".ge." | ">="	{ \s -> OpGE }
-  ".NOT."   | ".not."		{ \s -> OpNOT }
-  ".AND."   | ".and."		{ \s -> OpAND }
-  ".OR."    | ".or."		{ \s -> OpOR }
-  ".TRUE."  | ".true."		{ \s -> TrueConst }
-  ".FALSE." | ".false."		{ \s -> FalseConst }
-  ".EQV."   | ".eqv."		{ \s -> OpEQV }
-  ".NEGV."  | ".negv."  	{ \s -> OpNEQV }
-  ".LT."    | ".lt." | "<"	{ \s -> OpLT }
-  ".GT."    | ".gt." | ">"	{ \s -> OpGT }
+  "." $white* "EQ" $white* "."    | "." $white* "eq" $white* "."  | "=="	{ \s -> OpEQ }
+  "." $white* "NE" $white* "."    | "." $white* "ne" $white* "."  | "/="	{ \s -> OpNE }
+  "." $white* "LE" $white* "."    | "." $white* "le" $white* "."  | "<="	{ \s -> OpLE }
+  "." $white* "GE" $white* "."    | "." $white* "ge" $white* "."  | ">="	{ \s -> OpGE }
+  "." $white* "NOT" $white* "."   | "." $white* "not" $white* "."   		{ \s -> OpNOT }
+  "." $white* "AND" $white* "."   | "." $white* "and" $white* "." 		{ \s -> OpAND }
+  "." $white* "OR" $white* "."    | "." $white* "or" $white* "." 		{ \s -> OpOR }
+  "." $white* "TRUE" $white* "."  | "." $white* "true" $white* "."   		{ \s -> TrueConst }
+  "." $white* "FALSE" $white* "." | "." $white* "false" $white* "."  		{ \s -> FalseConst }
+  "." $white* "EQV" $white* "."   | "." $white* "eqv" $white* "."  		{ \s -> OpEQV }
+  "." $white* "NEQV" $white* "."  | "." $white* "neqv" $white* "."     	{ \s -> OpNEQV }
+  "." $white* "LT" $white* "."    | "." $white* "lt" $white* "." | "<"	{ \s -> OpLT }
+  "." $white* "GT" $white* "."    | "." $white* "gt" $white* "." | ">"	{ \s -> OpGT }
   "*"				{ \s -> OpMul }
   "/"				{ \s -> OpDiv }
   "+"				{ \s -> OpAdd }
@@ -103,8 +103,9 @@ tokens :-
   "NULL()"			{ \s -> Key "null" }
   "&"				; -- ignore & anywhere
   @continuation_line_alt        { \s -> ContLineAlt } 
+  \n "!".* \n $white*"&"        { \s -> ContLineWithComment }
   "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
-  @comment                      ;
+  "!".*$                        ;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
   "}"				{ \s -> RBrace }
@@ -123,6 +124,8 @@ tokens :-
   @octal_constant_suffix	{ \s -> OctConst s }
   @hex_constant_suffix		{ \s -> HexConst s }
   @digit_string			{ \s -> Num s }
+  "go" $white "to"              { \s -> Key "goto" }
+  "GO" $white "TO"              { \s -> Key "goto" }
 
 {
 -- Each action has type :: String -> Token
@@ -152,7 +155,7 @@ data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt
+	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt | ContLineWithComment
 	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
@@ -210,5 +213,6 @@ lexer' = do s <- getInput
 					         NewLine    -> lexNewline >> (return tok)
 					         ContLine   -> (discard len) >> lexNewline >> lexer'
 					         ContLineAlt -> lexNewline >> (discard (len - 1)) >> lexer'
+						 ContLineWithComment -> lexNewline >> lexNewline  >> (discard (len - 2)) >> lexer'
                                                  _           -> (discard len) >> (return tok)
 }

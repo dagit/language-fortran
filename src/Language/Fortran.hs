@@ -127,7 +127,7 @@ data Attr     p = Parameter p
                 | Public p
                 | Private p
                 | Sequence p
---              | Dimension [(Expr,Expr)] -- in Type: ArrayT
+                | Dimension p [(Expr p, Expr p)]
               deriving (Show, Functor, Typeable, Data, Eq)
 			  
 data GSpec   p = GName p (Expr p) | GOper p (BinOp p) | GAssg p
