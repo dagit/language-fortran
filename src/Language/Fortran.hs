@@ -348,6 +348,7 @@ instance Tagged Attr where
     tag (Public x)      = x
     tag (Private x)     = x
     tag (Sequence x)    = x
+    tag (Dimension x _) = x
 
 instance Tagged BaseType where
     tag (Integer x)    = x
