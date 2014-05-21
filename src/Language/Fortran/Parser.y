@@ -1027,7 +1027,7 @@ block_do_construct
 			    s       <- getSrcSpan $1;
 			    if (n == $3) then 
 				return $ For () s (fst4 $4) (snd4 $4) (trd4 $4) (frh4 $4) fs
-                            else return $ NullStmt undefined undefined --  parseError $ "DO/CONTINUE labels don't match"
+			      else return $ NullStmt () s --  parseError $ "DO/CONTINUE labels don't match" -- NEEDS FIXING!
                           } }
 
 nonlabel_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
