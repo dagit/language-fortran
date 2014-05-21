@@ -1139,7 +1139,7 @@ pause_stmt :: { Fortran A0 }
 pause_stmt : srcloc PAUSE STR {% getSrcSpan $1 >>= (\s -> return $ Pause () s $3) }
 
 format_stmt :: { Fortran A0 }
-format_stmt : srcloc FORMAT io_control_spec_list_d {% getSrcSpan $1 >>= (\s -> return $ Format () $3) }
+format_stmt : srcloc FORMAT io_control_spec_list_d {% getSrcSpan $1 >>= (\s -> return $ Format () s $3) }
 
 call_stmt :: { Fortran A0 }
 call_stmt

@@ -234,6 +234,7 @@ instance Alts v => OutputF (Attr p) v where --new
     outputF (Public _)           = "public "
     outputF (Private _)          = "private "
     outputF (Sequence _)         = "sequence "
+    outputF (Dimension _ _)      = "dimension "
 
 instance (OutputG (Arg p) v, OutputG (BinOp p) v, OutputG (Expr p) v, Alts v) => OutputF (GSpec p) v where
   outputF (GName _ s)  = outputG s
@@ -416,6 +417,7 @@ instance (Indentor (Fortran p),
           OutputG (BinOp p) v, 
           OutputG (ArgList p) v,
           OutputIndG (Fortran p) v,
+          OutputG (DataForm p) v, 
           OutputG (Fortran p) v, OutputG (Spec p) v, Alts v) => OutputIndF (Fortran p) v where
 
     outputIndF i t@(Assg _ _ v e)            = (indR t i)++outputG v++" = "++outputG e
@@ -452,15 +454,17 @@ instance (Indentor (Fortran p),
     outputIndF i t@(Close  _ _ ss)                   = (indR t i)++"close "++asTuple outputG ss++"\n"
     outputIndF i t@(Continue _ _)                   = (indR t i)++"continue"++"\n"
     outputIndF i t@(Cycle _ _ s)                    = (indR t i)++"cycle "++outputG s++"\n"
+    outputIndF i t@(DataStmt _ _ d)                 = (indR t i)++(outputG d)++"\n"
     outputIndF i t@(Deallocate _ _ es e)            = (indR t i)++"deallocate "++asTuple outputG es++outputG e++"\n"
     outputIndF i t@(Endfile _ _ ss)                 = (indR t i)++"endfile "++asTuple outputG ss++"\n"
     outputIndF i t@(Exit _ _ s)                     = (indR t i)++"exit "++outputG s
-    outputIndF i t@(Format        _ es)             = (indR t i)++"format " ++ (asTuple outputG es)
+    outputIndF i t@(Format      _  _ es)            = (indR t i)++"format " ++ (asTuple outputG es)
     outputIndF i t@(Forall _ _ (is, (NullExpr _ _)) f)    = (indR t i)++"forall ("++showForall is++") "++outputG f
     outputIndF i t@(Forall _ _ (is,e)            f) = (indR t i)++"forall ("++showForall is++","++outputG e++") "++outputG f
     outputIndF i t@(Goto _ _ s)                     = (indR t i)++"goto "++outputG s
     outputIndF i t@(Nullify _ _ es)                 = (indR t i)++"nullify "++asTuple outputG es++"\n"
     outputIndF i t@(Inquire _ _ ss es)              = (indR t i)++"inquire "++asTuple outputG ss++" "++(concat (intersperse "," (map outputG es)))++"\n"
+    outputIndF i t@(Pause _ _ s)                  = (indR t i)++"pause "++ show s ++ "\n"
     outputIndF i t@(Rewind _ _  ss)                  = (indR t i)++"rewind "++asTuple outputG ss++"\n"
     outputIndF i t@(Stop _ _ e)                     = (indR t i)++"stop "++outputG e++"\n"
     outputIndF i t@(Where _ _ e f)                  = (indR t i)++"where ("++outputG e++") "++outputG f

@@ -160,7 +160,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | Deallocate p SrcSpan [(Expr p)] (Expr p)
                 | Endfile p SrcSpan [Spec p]
                 | Exit p SrcSpan String
-                | Format p [Spec p]
+                | Format p SrcSpan [Spec p]
                 | Forall p SrcSpan ([(String,(Expr p),(Expr p),(Expr p))],(Expr p)) (Fortran p)
                 | Goto p SrcSpan String
                 | Nullify p SrcSpan [(Expr p)]
@@ -310,13 +310,16 @@ instance Span (Fortran a) where
     srcSpan (Close x sp s)           = sp 
     srcSpan (Continue x sp)          = sp
     srcSpan (Cycle x sp s)           = sp
+    srcSpan (DataStmt x sp _)        = sp
     srcSpan (Deallocate x sp es e)   = sp
     srcSpan (Endfile x sp s)         = sp
     srcSpan (Exit x sp s)            = sp
+    srcSpan (Format x sp _)          = sp
     srcSpan (Forall x sp es f)       = sp
     srcSpan (Goto x sp s)            = sp
     srcSpan (Nullify x sp e)         = sp
     srcSpan (Inquire x sp s e)       = sp
+    srcSpan (Pause x sp _)           = sp
     srcSpan (Rewind x sp s)          = sp 
     srcSpan (Stop x sp e)            = sp
     srcSpan (Where x sp e f)         = sp 
@@ -402,11 +405,12 @@ instance Tagged Decl where
     tag (Decl x _ _ _)          = x
     tag (Namelist x _)        = x
     tag (DataDecl x _)        = x
+    tag (Equivalence x sp _)    = x
+    tag (AttrStmt x _ _)    = x
     tag (AccessStmt x _ _)    = x
     tag (ExternalStmt x _)    = x
     tag (Interface x _ _)     = x
     tag (Common x _ _ _)        = x
-    tag (Equivalence x sp _)    = x
     tag (DerivedTypeDef x sp _ _ _ _) = x
     tag (Include x _)         = x
     tag (DSeq x _ _)          = x
@@ -424,18 +428,20 @@ instance Tagged Fortran where
     tag (Allocate x sp e1 e2)   = x
     tag (Backspace x sp _)      = x
     tag (Call x sp e as)        = x
-    tag (DataStmt x sp _)       = x
     tag (Open x sp s)           = x
     tag (Close x sp s)          = x 
     tag (Continue x sp)         = x
     tag (Cycle x sp s)          = x
+    tag (DataStmt x sp _)       = x
     tag (Deallocate x sp es e)  = x
     tag (Endfile x sp s)        = x
     tag (Exit x sp s)           = x
+    tag (Format x sp _)         = x
     tag (Forall x sp es f)      = x
     tag (Goto x sp s)           = x
     tag (Nullify x sp e)        = x
     tag (Inquire x sp s e)      = x
+    tag (Pause x sp _)          = x
     tag (Rewind x sp s)         = x 
     tag (Stop x sp e)           = x
     tag (Where x sp e f)        = x 
