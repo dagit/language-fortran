@@ -10,7 +10,8 @@ import Data.Char (toLower)
 
 }
 
-%name parser
+%name parser executable_program
+%name include_parser include_program
 %tokentype { Token }
 
 %monad { P } { >>= } { return }
@@ -169,6 +170,11 @@ import Data.Char (toLower)
  TEXT                   { Text $$ }
 %%
 
+include_program :: { ProgUnit A0 }
+include_program 
+: srcloc specification_part_top {% do { s <- getSrcSpan $1; 
+                                        return (IncludeProg () s $2) } }
+
 executable_program :: { Program A0 }
 executable_program
   : program_unit_list                             { $1 }
@@ -209,6 +215,8 @@ main_program
 		        s' <- getSrcSpan $6;
 		        name <- cmpNames (fst $2) $10 "program";
 		        return (Main () s name (snd $2) (Block () (UseBlock $4 $3) $5 s' $7 $8) $9); } }
+
+
 
 program_stmt :: { (SubName A0, Arg A0) }
 program_stmt

@@ -72,6 +72,7 @@ data ProgUnit  p = Main      p SrcSpan                      (SubName p)  (Arg p)
                 | PSeq       p SrcSpan (ProgUnit p) (ProgUnit p)   -- sequence of programs
                 | Prog       p SrcSpan (ProgUnit p)                -- useful for {#p: #q : program ... }
                 | NullProg   p SrcSpan                             -- null
+                | IncludeProg p SrcSpan (Decl p)
                 deriving (Show, Functor, Typeable, Data, Eq)
 
 data Implicit p = ImplicitNone p | ImplicitNull p 
