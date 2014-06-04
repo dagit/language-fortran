@@ -170,10 +170,10 @@ import Data.Char (toLower)
  TEXT                   { Text $$ }
 %%
 
-include_program :: { ProgUnit A0 }
+include_program :: { Program A0 }
 include_program 
 : srcloc specification_part_top {% do { s <- getSrcSpan $1; 
-                                        return (IncludeProg () s $2) } }
+                                        return [IncludeProg () s $2] } }
 
 executable_program :: { Program A0 }
 executable_program
