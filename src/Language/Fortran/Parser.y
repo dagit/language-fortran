@@ -172,8 +172,8 @@ import Data.Char (toLower)
 
 include_program :: { Program A0 }
 include_program 
-: srcloc specification_part_top {% do { s <- getSrcSpan $1; 
-                                        return [IncludeProg () s $2] } }
+: srcloc newline specification_part_top {% do { s <- getSrcSpan $1; 
+                                                return [IncludeProg () s $3] } }
 
 executable_program :: { Program A0 }
 executable_program
@@ -1751,7 +1751,7 @@ spanExtendL t x = let (l, l') = srcSpan t
                   in (SrcLoc (srcFilename l) (srcLine l) (srcColumn l - x), l')
 
 happyError :: P a
-happyError = parseError "syntax error"
+happyError = parseError "syntax error (from parser)"
 
 parseError :: String -> P a
 parseError m = do srcloc <- getSrcLoc'

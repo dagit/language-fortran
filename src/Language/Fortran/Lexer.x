@@ -59,7 +59,7 @@ tokens :-
   \n\# .* $			{ \s -> Text s }
   \n(C|c).*$			{ \s -> ContLineAlt }  -- Fortran 77 style comment
   \n				{ \s -> NewLine }
-  ($white # \n)+			;
+  ($white # \n)+		;
   "#"				{ \s -> Hash }
   "->"				{ \s -> MArrow }
   "=>"				{ \s -> Arrow }
@@ -101,7 +101,7 @@ tokens :-
   ";"                           { \s -> SemiColon }
   "$"				{ \s -> Dollar }
   "NULL()"			{ \s -> Key "null" }
-  "&"				; -- ignore & anywhere
+--   "&"				; -- ignore & anywhere
   @continuation_line_alt        { \s -> ContLineAlt } 
   \n "!".* \n $white*"&"        { \s -> ContLineWithComment }
   "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
@@ -207,7 +207,7 @@ lexer' = do s <- getInput
             case alexScan ('\0',[],s) 0 of
               AlexEOF             -> return TokEOF 
               AlexError (c,b,s')  -> fail ("unrecognizable token: " ++ show c)
-              AlexSkip  (_,b,s') len -> (discard len) >> lexer'
+              AlexSkip  (_,b,s') len -> discard len >> lexer'
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
                                                case tok of
 					         NewLine    -> lexNewline >> (return tok)
