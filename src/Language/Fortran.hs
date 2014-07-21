@@ -48,8 +48,6 @@ type Variable = String
 
 type ProgName = String               -- Fortran program names
 
-type MeasureUnit = String
-
 data SubName p  = SubName p String   -- Fortran subroutine names
                  | NullSubName p
                  deriving (Show, Functor, Typeable, Data, Eq)
@@ -106,12 +104,16 @@ data Decl     p = Decl           p SrcSpan [(Expr p, Expr p)] (Type p)          
                 | Interface      p (Maybe (GSpec p)) [InterfaceSpec p]      -- interface declaration
                 | Common         p SrcSpan (Maybe String) [Expr p]
                 | DerivedTypeDef p SrcSpan (SubName p) [Attr p] [Attr p] [Decl p]  -- derivified
-                | MeasureUnitDef p SrcSpan [(MeasureUnit, MeasureUnitSpec p)]
                 | Include        p (Expr p)                                -- include stmt
                 | DSeq           p (Decl p) (Decl p)                       -- list of decls
                 | TextDecl       p String                                  -- cpp switches to carry over
                 | NullDecl       p SrcSpan                                       -- null
+                -- UNITS OF MEASURE EXTENSION
+                | MeasureUnitDef p SrcSpan [(MeasureUnit, MeasureUnitSpec p)]
                   deriving (Show, Functor, Typeable, Data, Eq)
+
+-- Part of the units-of-measure extension
+type MeasureUnit = String
 
              -- BaseType  dimensions     type        Attributes   kind   len 
 data Type     p = BaseType p                    (BaseType p) [Attr p] (Expr p) (Expr p)
@@ -135,6 +137,7 @@ data Attr     p = Parameter p
                 | Public p
                 | Private p
                 | Sequence p
+                -- Units of measure extension
                 | MeasureUnit p (MeasureUnitSpec p)
 --              | Dimension [(Expr,Expr)] -- in Type: ArrayT
               deriving (Show, Functor, Typeable, Data, Eq)
