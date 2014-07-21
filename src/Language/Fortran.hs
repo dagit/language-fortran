@@ -7,7 +7,12 @@
 
 module Language.Fortran where
 
-import Data.Generics -- All AST nodes are members of 'Data' and 'Typeable' so that
+--------------------------------------------------------------------------
+-- IMPORTS
+---------------------------------------------------------------------------
+
+import Data.Generics -- Typeable class and boilerplate generic functions
+                     -- All AST nodes are members of 'Data' and 'Typeable' so that
                      -- data type generic programming can be done with the AST
 
 import Data.Maybe
@@ -104,6 +109,8 @@ data Decl     p = Decl           p SrcSpan [(Expr p, Expr p, Maybe Int)] (Type p
                 | DSeq           p (Decl p) (Decl p)                       -- list of decls
                 | TextDecl       p String                                  -- cpp switches to carry over
                 | NullDecl       p SrcSpan                                 -- null
+                -- units-of-measure extension
+                | MeasureUnitDef p SrcSpan [(MeasureUnit, MeasureUnitSpec p)]
                   deriving (Show, Functor, Typeable, Data, Eq)
 
              -- BaseType  dimensions     type        Attributes   kind   len 
@@ -129,8 +136,26 @@ data Attr     p = Parameter p
                 | Private p
                 | Sequence p
                 | Dimension p [(Expr p, Expr p)]
+                -- units-of-measure extension
+                | MeasureUnit p (MeasureUnitSpec p)
               deriving (Show, Functor, Typeable, Data, Eq)
 			  
+
+{- start: units-of-measure extension -}
+type MeasureUnit = String
+
+data MeasureUnitSpec p = UnitProduct p [(MeasureUnit, Fraction p)]
+                       | UnitQuotient p [(MeasureUnit, Fraction p)] [(MeasureUnit, Fraction p)]
+                       | UnitNone p
+                         deriving (Show, Functor, Typeable, Data, Eq)
+
+data Fraction p = IntegerConst p String
+                | FractionConst p String String
+                | NullFraction p
+                  deriving (Show, Functor, Typeable, Data, Eq)
+{- end -}
+
+
 data GSpec   p = GName p (Expr p) | GOper p (BinOp p) | GAssg p
                  deriving (Show, Functor, Typeable, Data, Eq)
 			  
@@ -272,6 +297,7 @@ instance Span (Decl a) where
     srcSpan (Common _ sp _ _)             = sp
     srcSpan (Equivalence x sp _)          = sp
     srcSpan (DerivedTypeDef x sp _ _ _ _) = sp
+    srcSpan (MeasureUnitDef x sp _)       = sp
     srcSpan _ = error "No span for non common/equiv/type/ null declarations"
 
 instance Span (ProgUnit a) where

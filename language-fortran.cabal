@@ -1,10 +1,10 @@
 name:                language-fortran
-version:             0.2.1.0
+version:             0.2.5.0
 synopsis:            Fortran parser and language support
 -- description:         
 license:             BSD3
 license-file:        LICENSE
-author:              Jason Dagit, Dominic Orchard
+author:              Jason Dagit, Dominic Orchard, Oleg Oshmyan
 maintainer:          dagitj@gmail.com, dom.orchard@gmail.com
 -- copyright:           
 category:            Language

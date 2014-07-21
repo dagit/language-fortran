@@ -164,6 +164,7 @@ instance (Indentor (Decl p),
           OutputG (Expr p) v, 
           OutputG (GSpec p) v, 
           OutputG (InterfaceSpec p) v, 
+          OutputG (MeasureUnitSpec p) v,
           OutputG (SubName p) v,
           OutputG (UnaryOp p) v, 
           OutputG (VarName p) v,
@@ -183,6 +184,7 @@ instance (Indentor (Decl p),
                                                      Nothing -> "") ++ (concat (intersperse "," (map outputF exps))) ++ "\n"
   outputF (Interface _ Nothing  is) = ind 1 ++ "interface " ++ outputG is ++ ind 1 ++ "end interface\n"
   outputF (DerivedTypeDef _  _ n as ps ds) = ind 1 ++ "type " ++ outputFList as ++  " :: " ++ outputG n ++ "\n" ++ (concat (intersperse "\n" (map (outputG) ps))) ++ (if (length ps > 0) then "\n" else "") ++ (concatMap (((ind 2) ++) . outputG) ds) ++ ind 1 ++ "end type " ++ outputG n ++ "\n\n"
+  outputF (MeasureUnitDef _ _ ds) = ind 1 ++ "unit :: " ++ (concat . intersperse ", " . map showDU) ds ++ "\n"
   outputF (Include _ i)  = "include "++outputG i
   outputF (DSeq _ d d')  = outputG d++outputG d'
   outputF (NullDecl _ _)    = ""
@@ -198,11 +200,14 @@ showDV (v, NullExpr _ _, Nothing) = outputF v
 showDV (v,e,Nothing)              = outputF v++" = "++outputF e
 showDV (v,e,Just n)              = (outputF v) ++ "*" ++ show n ++ " = "++(outputF e)
 
+showDU (name,spec) = outputF name++" = "++outputF spec
+
 instance (OutputG (ArgList p) v, 
           OutputG (BinOp p) v, 
           OutputG (UnaryOp p) v,
           OutputG (BaseType p) v,
           OutputG (Expr p) v,
+          OutputG (MeasureUnitSpec p) v,
           OutputG (VarName p) v,
           Alts v) => OutputF (Type p) v where
   outputF (BaseType _ bt as (NullExpr _ _)  (NullExpr _ _))   = outputG bt++outputFList as
@@ -219,7 +224,7 @@ instance (OutputG (ArgList p) v,
   outputF (ArrayT _ rs bt as e               e')               = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++outputFList as
 
 
-instance Alts v => OutputF (Attr p) v where --new
+instance (OutputG (MeasureUnitSpec p) v, Alts v) => OutputF (Attr p) v where --new
     outputF (Allocatable _)      = "allocatable "
     outputF (Parameter _)        = "parameter "
     outputF (External _)         = "external "
@@ -236,6 +241,17 @@ instance Alts v => OutputF (Attr p) v where --new
     outputF (Private _)          = "private "
     outputF (Sequence _)         = "sequence "
     outputF (Dimension _ _)      = "dimension "
+    outputF (MeasureUnit _ u)    = "unit("++outputG u++")"
+
+instance (Alts v) => OutputF (MeasureUnitSpec p) v where
+  outputF (UnitProduct _ units) = showUnits units
+  outputF (UnitQuotient _ units1 units2) = showUnits units1++" / "++showUnits units2
+  outputF (UnitNone _) = ""
+
+instance (Alts v) => OutputF (Fraction p) v where
+  outputF (IntegerConst _ s) = "**"++outputG s
+  outputF (FractionConst _ p q) = "**("++outputG p++"/"++outputG q++")"
+  outputF (NullFraction _) = ""
 
 instance (OutputG (Arg p) v, OutputG (BinOp p) v, OutputG (Expr p) v, Alts v) => OutputF (GSpec p) v where
   outputF (GName _ s)  = outputG s
@@ -517,6 +533,12 @@ optTuple xs = asTuple outputF xs
 -- *optTuple xs = ""
 -- indent and showInd enable indented printing
 -- 
+
+showUnits :: (Alts v, ?variant :: v, OutputF (Fraction p) v) => [(MeasureUnit, Fraction p)] -> String
+showUnits units
+  | null units = "1"
+  | otherwise = printList [""," ",""] (\(unit, f) -> unit++outputF f) units
+
 
 outputFList :: (Alts v, ?variant :: v, OutputF a v) => [a] -> String
 outputFList  = concat . map (", "++) . map (outputF)

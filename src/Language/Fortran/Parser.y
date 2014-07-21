@@ -160,6 +160,8 @@ import Data.Char (toLower)
  THEN 			{ Key "then" }
  TYPE 			{ Key "type" }
 -- UNFORMATED 		{ Key "unformatted" }
+ UNIT                   { Key "unit" } -- units-of-measure extension
+ '1'                    { Num "1" }    -- units-of-measure extension
  USE 			{ Key "use" }
  VOLATILE 		{ Key "volatile" }
  WHERE 			{ Key "where" }
@@ -385,7 +387,7 @@ entity_decl :: { (Expr A0, Expr A0, Maybe Int) }
 entity_decl
 : srcloc ID '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s [(VarName () $2,[])], $4, Nothing)) }
 | variable             {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Nothing)) }  
-| variable '*' NUM     {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Just $ read $3)) }  
+| variable '*' num     {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Just $ read $3)) }  
 
 -- | id2                  {% getSrcSpanNull >>= (\s -> return $ (Var () s [(VarName () $1,[])], NullExpr () s, Nothing)) }  
  
@@ -449,7 +451,7 @@ char_len_param_value
 
 length_value :: { Expr A0 }
 length_value
-: srcloc NUM                                           {% getSrcSpan $1 >>= (\s -> return $ Con () s $2) }
+: srcloc num                                           {% getSrcSpan $1 >>= (\s -> return $ Con () s $2) }
 
 dim_spec :: { [(Expr A0, Expr A0)] }
 dim_spec
@@ -472,6 +474,7 @@ attr_spec_p :
 | POINTER                                        { ([],[Pointer ()]) }
 | SAVE                                           { ([],[Save ()]) }
 | TARGET                                         { ([],[Target ()]) }
+| UNIT '(' unit_spec ')'                         { ([],[MeasureUnit () $3]) } -- units-of-measure
 | VOLATILE                                       { ([],[Volatile ()]) }
 
 attr_spec :: { ([(Expr A0, Expr A0)],[Attr A0]) }
@@ -494,7 +497,49 @@ access_spec
 : PUBLIC            { Public () }
 | PRIVATE           { Private () }
 
+-- start: units-of-measure extension parsing
 
+unit_stmt :: { Decl A0 }
+  : srcloc UNIT '::' unit_decl_list  {% getSrcSpan $1 >>= (\s -> return $ MeasureUnitDef () s $4) }
+
+unit_decl_list :: { [(MeasureUnit, MeasureUnitSpec A0)] }
+unit_decl_list
+  : unit_decl ',' unit_decl_list  { $1:$3 }
+  | unit_decl                     { [$1] }
+
+unit_decl :: { (MeasureUnit, MeasureUnitSpec A0) }
+unit_decl
+  : srcloc ID '=' unit_spec  {% getSrcSpan $1 >>= (\s -> return ($2, $4)) }
+
+unit_spec :: { MeasureUnitSpec A0 }
+unit_spec
+: mult_unit_spec '/' mult_unit_spec { UnitQuotient () $1 $3 }
+| mult_unit_spec                    { UnitProduct () $1 }
+| {- empty -}                       { UnitNone () }
+
+mult_unit_spec :: { [(MeasureUnit, Fraction A0)] }
+mult_unit_spec
+: mult_unit_spec power_unit_spec { $1++$2 }
+| power_unit_spec                { $1 }
+
+power_unit_spec :: { [(MeasureUnit, Fraction A0)] }
+power_unit_spec
+: ID '**' power_spec { [($1, $3)] }
+| ID                 { [($1, NullFraction ())] }
+| '1'                { [] }
+
+power_spec :: { Fraction A0 }
+power_spec
+: '(' signed_num '/' signed_num ')' { FractionConst () $2 $4 }
+| signed_num                        { IntegerConst () $1 }
+| '(' power_spec ')'                { $2 }
+
+signed_num :: { String }
+signed_num
+: '-' num { "-" ++ $2 }
+| num     { $1 }
+ 
+-- end
 
 array_spec :: { [(Expr A0, Expr A0)] }
 array_spec
@@ -788,6 +833,7 @@ subname :: { SubName A0 }
 subname
 : ID	   { SubName () $1 }
 | id_keywords { SubName () $1 }
+
   
 prefix :: { (BaseType A0, Expr A0, Expr A0) }
 prefix
@@ -926,7 +972,7 @@ level_1_expr
 
 primaryP :: { Expr A0 }
 primaryP :  
-   srcloc NUM '*' primary   {% getSrcSpan $1 >>= (\s -> return $ Bin () s (Mul ()) (Con () s $2) $4) }
+   srcloc num '*' primary   {% getSrcSpan $1 >>= (\s -> return $ Bin () s (Mul ()) (Con () s $2) $4) }
 |  srcloc '-' primary               {% getSrcSpan $1 >>= (\s -> return $ Unary () s (UMinus ()) $3) }
 |  primary                  { $1 }
 
@@ -981,7 +1027,7 @@ constant
 
 literal_constant :: { Expr A0 }
 literal_constant 
-: srcloc NUM                      {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
+: srcloc num                      {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
 | srcloc ZLIT                     {% (getSrcSpan $1) >>= (\s -> return $ ConL () s 'z' $2) }
 | srcloc STR			  {% (getSrcSpan $1) >>= (\s -> return $ ConS () s $2) }
 | logical_literal_constant	  { $1 }
@@ -1023,14 +1069,14 @@ do_construct
 block_do_construct :: { Fortran A0 } 
 block_do_construct                  
 : srcloc nonlabel_do_stmt newline do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $4) } 
-| srcloc DO NUM loop_control newline do_block_num 
+| srcloc DO num loop_control newline do_block_num 
                     {% do { (fs, n) <- return $ $6;
 			    s       <- getSrcSpan $1;
 			    if (n == $3) then 
 				return $ For () s (fst4 $4) (snd4 $4) (trd4 $4) (frh4 $4) fs
                             else parseError "DO/END DO labels don't match"
                           } }
-| srcloc DO NUM loop_control newline do_block_cont 
+| srcloc DO num loop_control newline do_block_cont 
                     {% do { (fs, n) <- return $ $6;
 			    s       <- getSrcSpan $1;
 			    if (n == $3) then 
@@ -1055,21 +1101,21 @@ loop_control2
 
 do_block :: { Fortran A0 }
 do_block : line newline do_block { FSeq () (spanTrans $1 $3) $1 $3 }
-| NUM end_do  {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
+| num end_do  {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
 | end_do      {% getSrcSpanNull >>= (\s -> return $ NullStmt () s) }
 
 do_block_num :: { (Fortran A0, String) }
 do_block_num : line newline do_block_num { let (fs, n) = $3 in (FSeq () (spanTrans $1 fs) $1 fs, n) }
-| NUM end_do  {% getSrcSpanNull >>= (\s -> return $ (NullStmt () s, $1)) }
+| num end_do  {% getSrcSpanNull >>= (\s -> return $ (NullStmt () s, $1)) }
 
 
 do_block_cont :: { (Fortran A0, String) }
 do_block_cont : 
-   NUM CONTINUE  {% getSrcSpanNull >>= (\s -> return $ (NullStmt () s, $1)) }
+   num CONTINUE  {% getSrcSpanNull >>= (\s -> return $ (NullStmt () s, $1)) }
 | line newline do_block_cont { let (fs, n) = $3 in (FSeq () (spanTrans $1 fs) $1 fs, n) }
 
 line :: { Fortran A0 }
-line :  NUM executable_constructP   {% getSrcSpanNull >>= (\s -> return $ Label () s $1 $2  ) }
+line :  num executable_constructP   {% getSrcSpanNull >>= (\s -> return $ Label () s $1 $2  ) }
           | executable_constructP  { $1 }
 
 end_do :: { }
@@ -1093,7 +1139,7 @@ executable_construct_list
 
 executable_construct :: { Fortran A0 }
 executable_construct
-:  NUM executable_constructP     {% (getSrcSpanNull) >>= (\s -> return $ Label () s $1 $2) }
+:  num executable_constructP     {% (getSrcSpanNull) >>= (\s -> return $ Label () s $1 $2) }
 |  executable_constructP     { $1 }
 
 executable_constructP :: { Fortran A0 }
@@ -1206,7 +1252,7 @@ if_construct
 : 
   -- FORTRAN 77 numerical comparison IFs
 
-  srcloc IF '(' logical_expr ')' NUM ',' NUM ',' NUM 
+  srcloc IF '(' logical_expr ')' num ',' num ',' num 
   {% getSrcSpan $1 >>= (\s -> return $ If () s (Bin () s (RelLT ()) $4 (Con () s "0")) (Goto () s $6)
 			[(Bin () s (RelEQ ()) $4 (Con () s "0"), (Goto () s $8)),
                          (Bin () s (RelGT ()) $4 (Con () s "0"), (Goto () s $10))] Nothing) }
@@ -1309,8 +1355,9 @@ position_spec_list
 position_spec :: { Spec A0 }
 position_spec
 : expr                                          { NoSpec () $1 }
+ | srcloc UNIT '=' expr                         { Unit () $4 } -- units-of-measure
  | srcloc ID '=' expr                           {% case (map (toLower) $2) of
-                                                       "unit"   -> return (Unit   () $4)
+ --                                                    "unit"   -> return (Unit   () $4)
                                                        "iostat" -> return (IOStat () $4)
                                                        s        ->  parseError ("incorrect name in spec list: " ++ s) }
 
@@ -1326,10 +1373,9 @@ close_spec_list
 close_spec :: { Spec A0 }
 close_spec
 : expr                                          { NoSpec () $1 }
+| UNIT '=' expr                                 { Unit () $3 } -- units-of-measure
 | ID '=' expr                          
-
 {% case (map (toLower) $1) of
-      "unit"   -> return (Unit   () $3)
       "iostat" -> return (IOStat () $3)
       "status" -> return (Status () $3)
       s        -> parseError ("incorrect name in spec list: " ++ s) }
@@ -1407,7 +1453,7 @@ forall_assignment_stmt_list
 
 goto_stmt :: { Fortran A0 }
 goto_stmt
-: srcloc GOTO NUM                                    {% getSrcSpan $1 >>= (\s -> return $ Goto () s $3) }
+: srcloc GOTO num                                    {% getSrcSpan $1 >>= (\s -> return $ Goto () s $3) }
 
 if_stmt :: { Fortran A0 }
 if_stmt
@@ -1429,10 +1475,10 @@ inquire_spec_list
 inquire_spec :: { Spec A0 }
 inquire_spec
 : expr                             { NoSpec () $1 }
+| UNIT '=' variable                { Unit () $3 } -- units-of-measure
 | READ '=' variable                { Read () $3 }
 | WRITE '=' variable               { WriteSp () $3 }
 | ID '=' expr                      {% case (map (toLower) $1) of
-                                            "unit"        -> return (Unit ()	  $3)
                                             "file"        -> return (File ()	  $3)
                                             "iostat"      -> return (IOStat ()     $3)
                                             "exist"       -> return (Exist ()      $3)
@@ -1501,8 +1547,8 @@ connect_spec_list
 connect_spec :: { Spec A0 }
 connect_spec
 : expr                    { NoSpec () $1 }
+| UNIT '=' expr           { Unit () $3 } 
 | ID '=' expr             {% case (map (toLower) $1) of
-                                          "unit"     -> return (Unit () $3)  
                                           "iostat"   -> return (IOStat () $3)
                                           "file"     -> return (File () $3)
                                           "status"   -> return (Status () $3)
@@ -1607,18 +1653,18 @@ io_control_spec
 | STR '/'                            { [StringLit () $1, Delimiter ()] }
 | END '=' label                      { [End () $3] }
 | io_control_spec_id                 { [$1] }
-| NUM                                {% getSrcSpanNull >>= (\s -> return $ [Number () (Con () s $1)]) }
+| num                                {% getSrcSpanNull >>= (\s -> return $ [Number () (Con () s $1)]) }
 | floating_spec                      { [$1] }
 
 
 floating_spec :: { Spec A0 }
 floating_spec : DATA_DESC      {% getSrcSpanNull >>= (\s -> return $ Floating () (NullExpr () s) (Con () s $1) ) }
-| NUM DATA_DESC  {% getSrcSpanNull >>= (\s -> return $ Floating () (Con () s $1) (Con () s $2)) }
+| num DATA_DESC  {% getSrcSpanNull >>= (\s -> return $ Floating () (Con () s $1) (Con () s $2)) }
 
 io_control_spec_id :: { Spec A0 }
 : variable                               { NoSpec () $1 }
+--| UNIT '=' format                      { Unit () $3 }
 --| ID '=' format                          {% case (map (toLower) $1) of
---                                                     "unit"    -> return (Unit () $3)
 --                                                     "fmt"     -> return (FMT () $3)
 --                                                     "rec"     -> return (Rec () $3)
 --                                                     "advance" -> return (Advance () $3)
@@ -1649,6 +1695,11 @@ input_item
 label :: { Expr A0 }
 label
 : srcloc LABEL                       {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
+
+num :: { String }
+num
+: NUM { $1 }
+| '1' { "1" }
 
 --internal_file_unit :: { Expr A0 }
 --internal_file_unit
