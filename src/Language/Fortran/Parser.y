@@ -265,8 +265,8 @@ function_subprogram :: { ProgUnit A0 }
 function_subprogram
 : srcloc function_stmt srcloc use_stmt_list implicit_part srcloc specification_part_top execution_part end_function_stmt newline0  {% do { s <- getSrcSpan $1;
                        s' <- getSrcSpan $6;
-                       name <- cmpNames (fst3 $2) $9 "function";
-		       return (Function () s (trd3 $2) name (snd3 $2) (Block () (UseBlock $4 $3) $5 s' $7 $8)); } }
+                       name <- cmpNames (fst4 $2) $9 "function";
+		       return (Function () s (trd4 $2) name (snd4 $2) (frh4 $2) (Block () (UseBlock $4 $3) $5 s' $7 $8)); } }
 
 block_data :: { ProgUnit A0 }
 block_data
@@ -490,6 +490,7 @@ attr_spec
 | POINTER                                        { ([],[Pointer ()]) }
 | SAVE                                           { ([],[Save ()]) }
 | TARGET                                         { ([],[Target ()]) }
+| UNIT '(' unit_spec ')'                         { ([],[MeasureUnit () $3]) }
 | VOLATILE                                       { ([],[Volatile ()]) }
 
 access_spec :: { Attr A0 }
@@ -584,7 +585,8 @@ specification_stmt
 --  | optional_stmt          { $1 }
 --  | pointer_stmt           { $1 }
   | save_stmt              { $1 }
---  | target_stmt            { $1 }
+--  | target_stmt            { $1 } 
+  | unit_stmt              { $1 }
 
 save_stmt :: { Decl A0 }
  : SAVE { AccessStmt () (Save ()) [] }
@@ -621,13 +623,13 @@ end_interface_stmt
 interface_body :: { InterfaceSpec A0 } 
 interface_body
   : function_stmt  use_stmt_list implicit_part specification_part end_function_stmt 
-        {% do { name <- cmpNames (fst3 $1) $5 "interface declaration";
-	        return (FunctionInterface ()  name (snd3 $1) $2 $3 $4); }}
+        {% do { name <- cmpNames (fst4 $1) $5 "interface declaration";
+	        return (FunctionInterface ()  name (snd4 $1) $2 $3 $4); }}
 
   | function_stmt end_function_stmt  
-        {% do { name <- cmpNames (fst3 $1) $2 "interface declaration";
+        {% do { name <- cmpNames (fst4 $1) $2 "interface declaration";
 	        s <- getSrcSpanNull;
-	        return (FunctionInterface () name (snd3 $1) (UseNil ()) (ImplicitNull ()) (NullDecl () s)); } }       
+	        return (FunctionInterface () name (snd4 $1) (UseNil ()) (ImplicitNull ()) (NullDecl () s)); } }       
 
   | subroutine_stmt use_stmt_list implicit_part specification_part end_subroutine_stmt
         {% do { name <- cmpNames (fst3 $1) $5 "interface declaration";
@@ -822,12 +824,12 @@ subroutine_stmt
 | SUBROUTINE subname srcloc        newline {% (getSrcSpan $3) >>= (\s -> return $ ($2,Arg () (NullArg ()) s,Nothing)) }
   | prefix SUBROUTINE subname args_p newline { ($3,$4,Just (fst3 $1)) }
   
-function_stmt :: { (SubName A0, Arg A0, Maybe (BaseType A0)) }
+function_stmt :: { (SubName A0, Arg A0, Maybe (BaseType A0), Maybe (VarName A0)) }
 function_stmt
-  : prefix FUNCTION subname args_p RESULT '(' id2 ')' newline { ($3,$4,Just (fst3 $1)) }
-  | prefix FUNCTION subname args_p                    newline { ($3,$4,Just (fst3 $1)) }
-  | FUNCTION subname args_p RESULT '(' id2 ')'        newline { ($2,$3,Nothing) }
-  | FUNCTION subname args_p                           newline { ($2,$3,Nothing) }
+ : prefix FUNCTION subname args_p RESULT '(' id2 ')' newline { ($3,$4,Just (fst3 $1),Just (VarName () $7)) }
+ | prefix FUNCTION subname args_p                    newline { ($3,$4,Just (fst3 $1),Nothing) }
+ | FUNCTION subname args_p RESULT '(' id2 ')'        newline { ($2,$3,Nothing,Just (VarName () $6)) }
+ | FUNCTION subname args_p                           newline { ($2,$3,Nothing,Nothing) }
   
 subname :: { SubName A0 }
 subname

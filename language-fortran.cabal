@@ -1,5 +1,5 @@
 name:                language-fortran
-version:             0.2.5.0
+version:             0.2.5.1
 synopsis:            Fortran parser and language support
 -- description:         
 license:             BSD3

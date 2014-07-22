@@ -68,10 +68,10 @@ data ArgList  p = ArgList p (Expr p)
 
 type Program p = [ProgUnit p]
 
-               -- Prog type   (type of result)   name      args  body    use's  
+               -- Prog type   (type of result)   name      args  (result) body    use's  
 data ProgUnit  p = Main      p SrcSpan                      (SubName p)  (Arg p)  (Block p) [ProgUnit p]
                 | Sub        p SrcSpan (Maybe (BaseType p)) (SubName p)  (Arg p)  (Block p)
-                | Function   p SrcSpan (Maybe (BaseType p)) (SubName p)  (Arg p)  (Block p)
+                | Function   p SrcSpan (Maybe (BaseType p)) (SubName p)  (Arg p)  (Maybe (VarName p)) (Block p)
                 | Module     p SrcSpan                      (SubName p)  (Uses p) (Implicit p) (Decl p) [ProgUnit p]
                 | BlockData  p SrcSpan                      (SubName p)  (Uses p) (Implicit p) (Decl p)
                 | PSeq       p SrcSpan (ProgUnit p) (ProgUnit p)   -- sequence of programs
@@ -301,14 +301,14 @@ instance Span (Decl a) where
     srcSpan _ = error "No span for non common/equiv/type/ null declarations"
 
 instance Span (ProgUnit a) where
-    srcSpan (Main x sp _ _ _ _)      = sp
-    srcSpan (Sub x sp _ _ _ _)       = sp
-    srcSpan (Function x sp _ _ _ _)  = sp
-    srcSpan (Module x sp _ _ _ _ _ ) = sp
-    srcSpan (BlockData x sp _ _ _ _) = sp
-    srcSpan (PSeq x sp _ _)          = sp
-    srcSpan (Prog x sp _)            = sp
-    srcSpan (NullProg x sp)          = sp
+    srcSpan (Main x sp _ _ _ _)       = sp
+    srcSpan (Sub x sp _ _ _ _)        = sp
+    srcSpan (Function x sp _ _ _ _ _) = sp
+    srcSpan (Module x sp _ _ _ _ _ )  = sp
+    srcSpan (BlockData x sp _ _ _ _)  = sp
+    srcSpan (PSeq x sp _ _)           = sp
+    srcSpan (Prog x sp _)             = sp
+    srcSpan (NullProg x sp)           = sp
 
 instance Span (Expr a) where
     srcSpan (Con x sp _)        = sp
@@ -421,7 +421,7 @@ instance Tagged ArgName where
 instance Tagged ProgUnit where
     tag (Main x sp _ _ _ _)      = x
     tag (Sub x sp _ _ _ _)       = x
-    tag (Function x sp _ _ _ _)  = x
+    tag (Function x sp _ _ _ _ _)= x
     tag (Module x sp _ _ _ _ _ ) = x
     tag (BlockData x sp _ _ _ _) = x
     tag (PSeq x sp _ _)          = x
