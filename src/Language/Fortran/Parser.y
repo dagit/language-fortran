@@ -385,7 +385,8 @@ entity_decl_list
 
 entity_decl :: { (Expr A0, Expr A0, Maybe Int) }
 entity_decl
-: srcloc ID '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s [(VarName () $2,[])], $4, Nothing)) }
+-- : srcloc ID '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s [(VarName () $2,[])], $4, Nothing)) }
+: srcloc variable '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s $1, $4, Nothing)) }
 | variable             {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Nothing)) }  
 | variable '*' num     {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Just $ read $3)) }  
 
@@ -901,6 +902,7 @@ subscript
 bound :: { Expr A0 }
 bound
 : expr ':' expr                       { Bound () (spanTrans $1 $3) $1 $3 }
+|  ':'                                {% getSrcSpanNull >>= (\s -> return $ Bound () s (NullExpr () s) (NullExpr () s)) }
 | expr ':'                            {% getSrcSpanNull >>= (\s' -> return $ Bound () (spanTrans' $1 s') $1 (NullExpr () s')) }
 | srcloc ':' expr                     {% (getSrcSpan $1) >>= (\s@(_, l) -> return $ Bound () s (NullExpr () (l, l)) $3) }
 
@@ -912,7 +914,15 @@ section_subscript_list
 section_subscript :: { Expr A0 }
 section_subscript
 : subscript                             { $1 }
-| srcloc ID '=' expr			{% getSrcSpan $1 >>= (\s -> return $ AssgExpr () s $2 $4) }
+| srcloc ID  section_part               {% getSrcSpan $1 >>= (\s -> return $ $3 s $2) }
+
+{-                            {% getSrcSpan $1 >>= (\s -> return $ Var () s [(VarName () $2, [])]) } 
+  | srcloc ID '=' expr			{% getSrcSpan $1 >>= (\s -> return $ AssgExpr () s $2 $4) } -}
+
+section_part :: { SrcSpan -> String -> Expr A0 }
+section_part 
+: {- empty -}      { \s v -> Var () s [(VarName () v, [])] } 
+| '=' expr         { \s v -> AssgExpr () s v $2 }
 
 expr :: { Expr A0 }
 expr

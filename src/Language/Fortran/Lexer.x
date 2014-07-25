@@ -37,7 +37,7 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @e = @int_literal_constant
 @data_edit_desc = (("I"|"B"|"O"|"Z") @w ( \. @m)?) | "F" @w \. @d | (("E"|"EN"|"ES"|"G") @w \. @d ("E" @e)?) | "L" @w | "A" @w? | @w "X" | "D" @w \. @d ("E" @e)? | "R" @w | "Q"
 
-@continuation_line_alt = \n$white*"&" | \n$white*"$" | \n$white*"+" 
+@continuation_line_alt = \n$white*"&" | $white*"&" | \n$white*"$" | \n$white*"+" 
 
 @binary_constant_prefix = ("B" \' $digit+ \')      | ("B" \" $digit+ \")
 @octal_constant_prefix  = ("O" \' $digit+ \')      | ("O" \" $digit+ \")
@@ -206,7 +206,7 @@ lexer' = do s <- getInput
        	    startToken
             case alexScan ('\0',[],s) 0 of
               AlexEOF             -> return TokEOF 
-              AlexError (c,b,s')  -> fail ("unrecognizable token: " ++ show c)
+              AlexError (c,b,s')  -> getInput >>= (\i -> fail ("unrecognizable token: " ++ show c ++ "(" ++ (show $ ord c) ++ "). " ++ i))
               AlexSkip  (_,b,s') len -> discard len >> lexer'
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
                                                case tok of
