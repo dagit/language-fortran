@@ -7,6 +7,7 @@ import Language.Haskell.Syntax (SrcLoc(..))
 import Language.Haskell.ParseMonad 
 import Language.Fortran.Lexer
 import Data.Char (toLower)
+import Debug.Trace
 
 }
 
@@ -277,8 +278,8 @@ block_data
   
 block_data_stmt :: { SubName A0 }
 block_data_stmt
-  : BLOCK DATA subname                     { $3 } 
-| BLOCK DATA                               { NullSubName () } 
+ : BLOCK DATA subname                     { $3 } 
+ | BLOCK DATA                             { "foobar" `trace` NullSubName () } 
 
 end_block_data_stmt :: { String }
 end_block_data_stmt
@@ -386,7 +387,7 @@ entity_decl_list
 entity_decl :: { (Expr A0, Expr A0, Maybe Int) }
 entity_decl
 -- : srcloc ID '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s [(VarName () $2,[])], $4, Nothing)) }
-: srcloc variable '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s $1, $4, Nothing)) }
+: variable '=' expr   { ($1, $3, Nothing) }
 | variable             {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Nothing)) }  
 | variable '*' num     {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Just $ read $3)) }  
 
@@ -914,15 +915,8 @@ section_subscript_list
 section_subscript :: { Expr A0 }
 section_subscript
 : subscript                             { $1 }
-| srcloc ID  section_part               {% getSrcSpan $1 >>= (\s -> return $ $3 s $2) }
+| srcloc ID '=' expr			{% getSrcSpan $1 >>= (\s -> return $ AssgExpr () s $2 $4) }
 
-{-                            {% getSrcSpan $1 >>= (\s -> return $ Var () s [(VarName () $2, [])]) } 
-  | srcloc ID '=' expr			{% getSrcSpan $1 >>= (\s -> return $ AssgExpr () s $2 $4) } -}
-
-section_part :: { SrcSpan -> String -> Expr A0 }
-section_part 
-: {- empty -}      { \s v -> Var () s [(VarName () v, [])] } 
-| '=' expr         { \s v -> AssgExpr () s v $2 }
 
 expr :: { Expr A0 }
 expr
@@ -1081,6 +1075,13 @@ do_construct
 block_do_construct :: { Fortran A0 } 
 block_do_construct                  
 : srcloc nonlabel_do_stmt newline do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $4) } 
+| srcloc DO num ',' loop_control newline do_block_num 
+                    {% do { (fs, n) <- return $ $7;
+			    s       <- getSrcSpan $1;
+			    if (n == $3) then 
+				return $ For () s (fst4 $5) (snd4 $5) (trd4 $5) (frh4 $5) fs
+                            else parseError "DO/END DO labels don't match"
+                          } }
 | srcloc DO num loop_control newline do_block_num 
                     {% do { (fs, n) <- return $ $6;
 			    s       <- getSrcSpan $1;

@@ -37,7 +37,7 @@ $alphanumeric_charactor = [$letter $digit $underscore $currency_symbol $at_sign]
 @e = @int_literal_constant
 @data_edit_desc = (("I"|"B"|"O"|"Z") @w ( \. @m)?) | "F" @w \. @d | (("E"|"EN"|"ES"|"G") @w \. @d ("E" @e)?) | "L" @w | "A" @w? | @w "X" | "D" @w \. @d ("E" @e)? | "R" @w | "Q"
 
-@continuation_line_alt = \n$white*"&" | $white*"&" | \n$white*"$" | \n$white*"+" 
+@continuation_line_alt = \n$white*"&" | \n$white*"$" | \n$white*"+" 
 
 @binary_constant_prefix = ("B" \' $digit+ \')      | ("B" \" $digit+ \")
 @octal_constant_prefix  = ("O" \' $digit+ \')      | ("O" \" $digit+ \")
@@ -57,7 +57,7 @@ $exponent_letter = [EeDd]
 
 tokens :-
   \n\# .* $			{ \s -> Text s }
-  \n(C|c).*$			{ \s -> ContLineAlt }  -- Fortran 77 style comment
+  \n(C|c)$white .*$		{ \s -> ContLineAlt }  -- Fortran 77 style comment
   \n				{ \s -> NewLine }
   ($white # \n)+		;
   "#"				{ \s -> Hash }
@@ -105,6 +105,7 @@ tokens :-
   @continuation_line_alt        { \s -> ContLineAlt } 
   \n "!".* \n $white*"&"        { \s -> ContLineWithComment }
   "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
+  $white*"&"                    { \s -> ContLineNoNewLine } 
   "!".*$                        ;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
@@ -155,7 +156,7 @@ data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt | ContLineWithComment
+	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt | ContLineWithComment | ContLineNoNewLine
 	   deriving (Eq,Show)
 
 -- all reserved keywords, names are matched against these to see
@@ -206,13 +207,15 @@ lexer' = do s <- getInput
        	    startToken
             case alexScan ('\0',[],s) 0 of
               AlexEOF             -> return TokEOF 
-              AlexError (c,b,s')  -> getInput >>= (\i -> fail ("unrecognizable token: " ++ show c ++ "(" ++ (show $ ord c) ++ "). " ++ i))
+              AlexError (c,b,s')  -> getInput >>= (\i -> fail ("unrecognizable token: " ++ show c ++ "(" ++ (show $ ord c) ++ "). "))
               AlexSkip  (_,b,s') len -> discard len >> lexer'
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
+	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace`
                                                case tok of
-					         NewLine    -> lexNewline >> (return tok)
-					         ContLine   -> (discard len) >> lexNewline >> lexer'
-					         ContLineAlt -> lexNewline >> (discard (len - 1)) >> lexer'
-						 ContLineWithComment -> lexNewline >> lexNewline  >> (discard (len - 2)) >> lexer'
-                                                 _           -> (discard len) >> (return tok)
+					          NewLine    -> lexNewline >> (return tok)
+					          ContLine   -> (discard len) >> lexNewline >> lexer'
+					          ContLineNoNewLine  -> (discard len) >> lexer'
+					          ContLineAlt -> lexNewline >> (discard (len - 1)) >> lexer'
+					 	  ContLineWithComment -> lexNewline >> lexNewline  >> (discard (len - 2)) >> lexer'
+                                                  _           -> (discard len) >> (return tok)
 }
