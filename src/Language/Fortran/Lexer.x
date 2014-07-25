@@ -57,7 +57,7 @@ $exponent_letter = [EeDd]
 
 tokens :-
   \n\# .* $			{ \s -> Text s }
-  \n(C|c)$white .*$		{ \s -> ContLineAlt }  -- Fortran 77 style comment
+  \n(C|c).*$                    { \s -> ContLineAlt }  -- Fortran 77 style comment
   \n				{ \s -> NewLine }
   ($white # \n)+		;
   "#"				{ \s -> Hash }
@@ -210,7 +210,7 @@ lexer' = do s <- getInput
               AlexError (c,b,s')  -> getInput >>= (\i -> fail ("unrecognizable token: " ++ show c ++ "(" ++ (show $ ord c) ++ "). "))
               AlexSkip  (_,b,s') len -> discard len >> lexer'
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
-	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace`
+	      			     	       --(show (tok, (take 20 s), len) ++ "\n") `trace`
                                                case tok of
 					          NewLine    -> lexNewline >> (return tok)
 					          ContLine   -> (discard len) >> lexNewline >> lexer'
