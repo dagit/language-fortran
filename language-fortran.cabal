@@ -1,5 +1,5 @@
 name:                language-fortran
-version:             0.2.5.1
+version:             0.2.6
 synopsis:            Fortran parser and language support
 -- description:         
 license:             BSD3
@@ -17,11 +17,13 @@ library
   exposed-modules:     Language.Fortran.Parser,
                        Language.Fortran.Lexer,
                        Language.Fortran.Pretty,
+                       Language.Fortran.PreProcess, 
                        Language.Fortran
   -- other-modules:       
   build-depends:       base >=4.0 && < 5,
                        syb >= 0.3,
-                       haskell-src >= 1.0,		       		 
+                       haskell-src >= 1.0,
+                       parsec, 	       		 
                        array >= 0.4
 
   hs-source-dirs:      src

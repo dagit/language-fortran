@@ -2,6 +2,7 @@
 module Language.Fortran.Parser  where
 
 import Language.Fortran
+import Language.Fortran.PreProcess
 
 import Language.Haskell.Syntax (SrcLoc(..))
 import Language.Haskell.ParseMonad 
@@ -1828,7 +1829,7 @@ tokenFollows s = case alexScan ('\0',[],s) 0 of
 	            AlexToken (_,b,t) len _ -> take len s
 
 parse :: String -> Program A0
-parse p = case (runParser parser p) of 
+parse p = case (runParser parser (pre_process p)) of 
 	    (ParseOk p)       -> p
             (ParseFailed l e) ->  error e
 
