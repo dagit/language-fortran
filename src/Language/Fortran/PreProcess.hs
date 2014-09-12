@@ -70,11 +70,22 @@ end_do labels = do label' <- optionMaybe (do {space; n <- num; space; return n})
                       ((Just n):_, Just m)  -> if (n==m) then do ender <- end_do_marker <|> continue
                                                                  return $ " " ++ m ++ " " ++ sp ++ ender
 
-                                                         else error $ "Ill formed do blocks, labels do not match: " ++ n ++ " and " ++ m ++ " - " ++ (show labels)
+                                                         else -- Labels don't match!
+                                                              -- If the label doesn't appear anywhere in the label stack, 
+                                                              --   then this is allowed (e.g. extra 'continue' points)
+                                                              if (not ((Just m) `elem` labels)) then
+                                                                  do ender <- end_do_marker <|> continue_non_replace
+                                                                     return $ " " ++ m ++ " " ++ sp ++ ender
+                                                              else
+                                                              -- otherwise, we consider the do loops to be not properly bracketted
+                                                               error $ "Ill formed do blocks, labels do not match: " ++ n ++ " and " ++ m ++ 
+                                                                         " - with label stack " ++ (show labels)
                    level <- getState
                    updateState (\x -> x-1) -- "Level " ++ show level) `trace` (
                    p <- pre_parser (if labels == [] then [] else tail labels)
                    return $ ender ++ p
+
+continue_non_replace = string "continue" <|> string "CONTINUE"
 
 continue = do string "continue" <|> string "CONTINUE"
               return "end do  " -- replaces continue with 'end do', this is the goal!
