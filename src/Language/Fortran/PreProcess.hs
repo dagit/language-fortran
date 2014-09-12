@@ -42,47 +42,46 @@ ident  =  do{ c <- small ; cs <- many idchar; return (c:cs) }
 spaces = many space
 
 manyTillEnd p end =
-    scan where scan  = do{ end }
-                          <|>
-                       do{ x <- p; xs <- scan; return (x:xs) }
+    scan where scan  = (try end) <|> do { x <- p; xs <- scan; return (x:xs) }
    
-pre_parser label = manyTillEnd anyChar 
-                      (try $ if (label == Nothing) then (end_or_start_do label) <|> (eof >> return "")
-                                                   else  end_or_start_do label)                  
+pre_parser labels = manyTillEnd anyChar 
+                      (try $ if (labels == []) then (try $ end_or_start_do labels) <|> (eof >> return "")
+                                               else  end_or_start_do labels)                  
 
-end_or_start_do label = (try doBlock) <|> (end_do label)
+end_or_start_do labels = (try $ doBlock labels) <|> (end_do labels)
 
-doBlock = do string "do"
+doBlock labels = 
+          do doStr <- string "do" <|> string "DO"
              updateState (+1)
-             sp <- spaces
+             sp    <- spaces
              label <- (try numberedBlock) <|> (do { loop <- loop_control; return (Nothing, loop) })
-             p <- pre_parser $ fst label
-             return  $ "do" ++ sp ++ snd label ++ p 
+             p     <- pre_parser $ (fst label) : labels
+             return $ doStr ++ sp ++ snd label ++ p 
 
 
-end_do label = do label' <- optionMaybe (do {space; n <- num; space; return n})
-                  sp     <- spaces
-                  lookAhead (end_do_marker <|> continue)
-                  ender <- 
-                    case (label, label') of 
-                     (Nothing, _)      -> do { ender <- end_do_marker; return $ sp ++ ender }
-                     (Just n, Nothing) -> do { ender <- end_do_marker; return $ sp ++ ender }
-                     (Just n, Just m)  -> if (n==m) then do ender <- end_do_marker <|> continue
-                                                            return $ " " ++ m ++ " " ++ sp ++ ender
+end_do labels = do label' <- optionMaybe (do {space; n <- num; space; return n})
+                   sp     <- spaces
+                   lookAhead (end_do_marker <|> continue)
+                   ender <- 
+                     case (labels, label') of 
+                      ([], _)               -> do { ender <- end_do_marker; return $ sp ++ ender }
+                      ((Just n):_, Nothing) -> do { ender <- end_do_marker; return $ sp ++ ender }
+                      ((Just n):_, Just m)  -> if (n==m) then do ender <- end_do_marker <|> continue
+                                                                 return $ " " ++ m ++ " " ++ sp ++ ender
 
-                                                    else error $ "Ill formed do blocks, labels do not match: " ++ n ++ " and " ++ m
-                  level <- getState
-                  ("Level " ++ show level) `trace` (updateState (\x -> x-1))
-                  p <- pre_parser Nothing
-                  return $ ender ++ p
+                                                         else error $ "Ill formed do blocks, labels do not match: " ++ n ++ " and " ++ m ++ " - " ++ (show labels)
+                   level <- getState
+                   updateState (\x -> x-1) -- "Level " ++ show level) `trace` (
+                   p <- pre_parser (if labels == [] then [] else tail labels)
+                   return $ ender ++ p
 
-continue = do string "continue"
+continue = do string "continue" <|> string "CONTINUE"
               return "end do  " -- replaces continue with 'end do', this is the goal!
                       
-end_do_marker = do string "end"
+end_do_marker = do endStr <- string "end" <|> string "END"
                    sp <- spaces
-                   string "do"
-                   return $ "end" ++ sp ++ "do"
+                   doStr <- string "do" <|> string "DO"
+                   return $ endStr ++ sp ++ doStr
 
 numberedBlock = do label <- num
                    space 
@@ -92,18 +91,25 @@ numberedBlock = do label <- num
                    loop  <- loop_control
                    return $ (Just label, label ++ " " ++ sp1 ++ (maybe "" id comma) ++ sp2 ++ loop)
 
+newline' = 
+    (try $ do { c <- char '\r'; 
+                n <- newline;
+                return [c,n] })
+       <|> do { n <- newline; 
+                return [n] }
+
 loop_control = do var   <- ident
                   sp1   <- spaces
                   char '='
                   sp2   <- spaces
-                  lower <- num
+                  lower <- num <|> ident
                   sp3   <- spaces
                   char ','
                   sp4   <- spaces
-                  upper <- num
-                  newline
-                  return $ var ++ sp1 ++ "=" ++ sp2 ++ lower ++ sp3 ++ "," ++ sp4 ++ upper ++ "\n"
-
+                  upper <- num <|> ident
+                  rest  <- manyTillEnd anyChar (try newline')
+                  return $ var ++ sp1 ++ "=" ++ sp2 ++ lower ++ sp3 ++ "," ++ sp4 ++ upper ++ rest 
+                  
 parseExpr :: String -> String -> String
 parseExpr file input =
     case (runParser p (0::Int) "" input) of
@@ -114,7 +120,7 @@ parseExpr file input =
             setPosition $ (flip setSourceName) file $
                           (flip setSourceLine) 1 $
                           (flip setSourceColumn) 1 $ pos
-            x <- pre_parser Nothing
+            x <- pre_parser []
             return x
 
 pre_process input = parseExpr "" input
@@ -122,6 +128,3 @@ pre_process input = parseExpr "" input
 go filename = do args <- getArgs
                  srcfile <- readFile filename
                  return $ parseExpr filename srcfile
-
-main = do args <- getArgs
-          go (head args)
