@@ -38,7 +38,7 @@ import Debug.Trace
 num = many1 digit
 small = lower <|> char '_'
 idchar = small <|> upper <|> digit 
-ident  =  do{ c <- small ; cs <- many idchar; return (c:cs) }
+ident  =  do{ c <- small <|> upper ; cs <- many idchar; return (c:cs) }
 spaces = many space
 
 manyTillEnd p end =
@@ -65,6 +65,7 @@ end_do labels = do label' <- optionMaybe (do {space; n <- num; space; return n})
                    ender <- 
                      case (labels, label') of 
                       ([], _)               -> do { ender <- end_do_marker; return $ sp ++ ender }
+                      (Nothing:_, _)        -> do { ender <- end_do_marker; return $ sp ++ ender }
                       ((Just n):_, Nothing) -> do { ender <- end_do_marker; return $ sp ++ ender }
                       ((Just n):_, Just m)  -> if (n==m) then do ender <- end_do_marker <|> continue
                                                                  return $ " " ++ m ++ " " ++ sp ++ ender
