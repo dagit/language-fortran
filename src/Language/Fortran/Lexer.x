@@ -105,7 +105,7 @@ tokens :-
   @continuation_line_alt        { \s -> ContLineAlt } 
   \n "!".* \n $white*"&"        { \s -> ContLineWithComment }
   "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
-  $white*"&"                    { \s -> ContLineNoNewLine } 
+  ($white # \r # \n)*"&"            { \s -> ContLineNoNewLine } 
   "!".*$                        ;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
@@ -210,7 +210,7 @@ lexer' = do s <- getInput
               AlexError (c,b,s')  -> getInput >>= (\i -> fail ("unrecognizable token: " ++ show c ++ "(" ++ (show $ ord c) ++ "). "))
               AlexSkip  (_,b,s') len -> discard len >> lexer'
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
-	      			     	       --(show (tok, (take 20 s), len) ++ "\n") `trace`
+	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace`
                                                case tok of
 					          NewLine    -> lexNewline >> (return tok)
 					          ContLine   -> (discard len) >> lexNewline >> lexer'
