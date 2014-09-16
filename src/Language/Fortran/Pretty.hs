@@ -98,6 +98,7 @@ instance (OutputG (Arg p) v,
           OutputG (BaseType p) v,
           OutputG (Block p) v,
           OutputG (Decl p) v,
+          OutputG (Fortran p) v, 
           OutputG (Implicit p) v,
           OutputG (SubName p) v,
           OutputG (VarName p) v,
@@ -152,7 +153,8 @@ instance (OutputG (Arg p) v,
   outputF (PSeq _ _ p p')  = outputG p++outputG p'
   outputF (Prog _ _ p)     = outputG p
   outputF (NullProg _ _)    = ""
-  outputF (IncludeProg _ _ ds)   = outputG ds
+  outputF (IncludeProg _ _ ds Nothing) = outputG ds 
+  outputF (IncludeProg _ _ ds (Just f)) = outputG ds ++ "\n" ++ outputG f
 
 instance (OutputG (Fortran p) v, OutputG (Decl p) v, OutputG (Implicit p) v, Alts v) =>
             OutputF (Block p) v where

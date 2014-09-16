@@ -177,7 +177,7 @@ import Debug.Trace
 include_program :: { Program A0 }
 include_program 
 : srcloc newline specification_part_top {% do { s <- getSrcSpan $1; 
-                                                return [IncludeProg () s $3] } }
+                                                return [IncludeProg () s $3 Nothing] }}
 
 executable_program :: { Program A0 }
 executable_program
