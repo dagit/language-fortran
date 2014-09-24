@@ -210,7 +210,8 @@ lexer' = do s <- getInput
               AlexError (c,b,s')  -> getInput >>= (\i -> fail ("unrecognizable token: " ++ show c ++ "(" ++ (show $ ord c) ++ "). "))
               AlexSkip  (_,b,s') len -> discard len >> lexer'
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
-	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace`
+	      			     	       -- turn on for useful debugging info on lexing
+	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace` return ()
                                                case tok of
 					          NewLine    -> lexNewline >> (return tok)
 					          ContLine   -> (discard len) >> lexNewline >> lexer'

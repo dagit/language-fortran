@@ -1625,6 +1625,7 @@ output_item
 read_stmt :: { Fortran A0 }
 read_stmt
 : srcloc READ '(' io_control_spec_list ')' input_item_list {% getSrcSpan $1 >>= (\s -> return $ ReadS () s $4 $6) }
+| srcloc READ io_control_spec ',' input_item_list   {% getSrcSpan $1 >>= (\s -> return $ ReadS () s $3 $5) }
 | srcloc READ '(' io_control_spec_list ')'                 {% getSrcSpan $1 >>= (\s -> return $ ReadS () s $4 []) }
 
 
@@ -1656,7 +1657,6 @@ io_control_spec_list :
 | io_control_spec                           { $1 }
 
 -- (unit, fmt = format), (rec, advance = expr), (nml, iostat, id = var), (err, end, eor = label)
-
 
 io_control_spec :: { [Spec A0] } 
 io_control_spec
@@ -1694,6 +1694,7 @@ input_item_list :: { [Expr A0] }
 input_item_list
   : input_item_list ',' input_item                { $1++[$3] }
   | input_item                                    { [$1] }
+
 input_item :: { Expr A0 }
 input_item
   : variable                                      { $1 }
