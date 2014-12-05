@@ -1,7 +1,8 @@
 name:                language-fortran
-version:             0.2.6
-synopsis:            Fortran parser and language support
--- description:         
+version:             0.2.7
+synopsis:            Fortran lexer and parser, language support, and extensions. 
+description:         
+    Lexer and parser for Fortran roughly supporting standards from FORTRAN 77 to Fortran 2003 (but with some patches and rough edges). Also includes language extension support for units-of-measure typing.
 license:             BSD3
 license-file:        LICENSE
 author:              Jason Dagit, Dominic Orchard, Oleg Oshmyan
@@ -10,8 +11,6 @@ maintainer:          dagitj@gmail.com, dom.orchard@gmail.com
 category:            Language
 build-type:          Simple
 cabal-version:       >=1.8
-
-
 
 library
   exposed-modules:     Language.Fortran.Parser,

@@ -504,7 +504,7 @@ access_spec
 -- start: units-of-measure extension parsing
 
 unit_stmt :: { Decl A0 }
-  : srcloc UNIT '::' unit_decl_list  {% getSrcSpan $1 >>= (\s -> return $ MeasureUnitDef () s $4) }
+  : UNIT '::' unit_decl_list  {% getSrcSpanNull >>= (\s -> return $ MeasureUnitDef () s $3) }
 
 unit_decl_list :: { [(MeasureUnit, MeasureUnitSpec A0)] }
 unit_decl_list
@@ -576,6 +576,7 @@ specification_stmt :: { Decl A0 }
 specification_stmt
   : access_stmt            { $1 }
   | attr_stmt              { $1 }
+  | unit_stmt              { $1 }
 --  | allocatable_stmt       { $1 }
   | common_stmt            { $1 }
 | data_stmt              { DataDecl () $1 }
@@ -589,7 +590,6 @@ specification_stmt
 --  | pointer_stmt           { $1 }
   | save_stmt              { $1 }
 --  | target_stmt            { $1 } 
-  | unit_stmt              { $1 }
 
 save_stmt :: { Decl A0 }
  : SAVE { AccessStmt () (Save ()) [] }

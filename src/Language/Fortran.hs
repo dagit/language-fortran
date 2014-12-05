@@ -19,7 +19,7 @@ import Data.Maybe
 import Data.List
 
 
-import Language.Haskell.Syntax (SrcLoc)
+import Language.Haskell.Syntax (SrcLoc(..))
 
 -----------------------------------------------------------------------------------
 -- Language definition for Fortran (covers a lot of standards, but still incomplete)
@@ -443,6 +443,7 @@ instance Tagged Decl where
     tag (DSeq x _ _)          = x
     tag (TextDecl x _)        = x
     tag (NullDecl x _)        = x
+    tag (MeasureUnitDef x _ _)        = x
 
 instance Tagged DataForm where
     tag (Data x _)         = x
