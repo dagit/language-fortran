@@ -1,0 +1,3 @@
+Bugs
+
+ * Variables that look like exponents, e.g., E2, are not parsed
