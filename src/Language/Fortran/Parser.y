@@ -92,7 +92,7 @@ import Debug.Trace
  ELEMENTAL 		{ Key "elemental" }
  ELSE 			{ Key "else" }
  ELSEIF 		{ Key "elseif" }
--- ELSEWHERE 		{ Key "elsewhere" }
+ ELSEWHERE 		{ Key "elsewhere" }
  END 			{ Key "end" }
  ENDIF			{ Key "endif" }
  ENDDO			{ Key "enddo" }
@@ -166,6 +166,7 @@ import Debug.Trace
  '1'                    { Num "1" }    -- units-of-measure extension
  USE 			{ Key "use" }
  VOLATILE 		{ Key "volatile" }
+ WHILE 			{ Key "while" }
  WHERE 			{ Key "where" }
  WRITE 			{ Key "write" }
  ID                     { ID $$ }
@@ -206,7 +207,8 @@ vlist
   | variable                                      { [$1] }
 
 newline :: {}
-newline : '\n' newline0 {}
+newline : '\n' newline0 {} 
+-- | ';' newline0 {}
 
 newline0 :: {}
 newline0 : newline  {} 
@@ -1101,6 +1103,7 @@ block_do_construct
 nonlabel_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 nonlabel_do_stmt
   : DO loop_control                  { $2 }
+  | DO WHILE loop_control            { $3 }
   | DO                               {% getSrcSpanNull >>= (\s -> return $ (VarName () "", NullExpr () s, NullExpr () s, NullExpr () s)) }
 
 loop_control :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
@@ -1148,7 +1151,9 @@ execution_part
 executable_construct_list :: { Fortran A0 }
 executable_construct_list
 : executable_construct newline executable_construct_list { FSeq () (spanTrans $1 $3) $1 $3 }
+| executable_construct ';' executable_construct_list { FSeq () (spanTrans $1 $3) $1 $3 }
 | executable_construct newline { $1 }
+| executable_construct ';' { $1 }
 
 
 executable_construct :: { Fortran A0 }

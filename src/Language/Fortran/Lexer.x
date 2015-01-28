@@ -50,8 +50,8 @@ $exponent_letter = [EeDd]
 @exponent = @signed_digit_string
 @significand = (@digit_string \. @digit_string?) | (\. @digit_string)
 
-@real_literal_constant = (@significand ($exponent_letter @exponent)? (\_ @kind_param)?)
-		       | (@digit_string $exponent_letter @exponent (\_ @kind_param)?)
+@real_literal_constant = (@significand ($white* $exponent_letter @exponent)? (\_ @kind_param)?)
+		       | (@digit_string $white* $exponent_letter @exponent (\_ @kind_param)?)
 
 --@signed_real_literal_constant = $sign? @real_literal_constant
 
@@ -104,7 +104,7 @@ tokens :-
 --   "&"				; -- ignore & anywhere
   @continuation_line_alt        { \s -> ContLineAlt } 
   \n "!".* \n $white*"&"        { \s -> ContLineWithComment }
-  "&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
+  $white*"&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
   ($white # \r # \n)*"&"            { \s -> ContLineNoNewLine } 
   "!".*$                        ;
   "%"				{ \s -> Percent }
@@ -177,7 +177,7 @@ keywords = ["allocate", "allocatable","assign",
 	"program","public","pure","real","read","recursive","result",
 	"return","rewind","save","select","sequence","sometype","sqrt","stat",
 	"stop","subroutine","target","to","then","type",
-	"unit", "use","volatile","where","write"]
+	"unit", "use","volatile","where","while","write"]
 
 {- old keywords, many will be removed
 keywords :: [String]
@@ -196,7 +196,7 @@ keywords = ["access","action","advance","allocate","allocatable","assign",
 	"program","pure","real","read","readwrite","rec","recl","recursive","result",
 	"return","rewind","save","select","sequence","sequential","sometype","stat",
 	"status","stop","subroutine","target","to","then","type","unformatted",
-	"unit","use","volatile","where","write"]
+	"unit","use","volatile","where","while","write"]
 -}
 
 lexer :: (Token -> P a) -> P a
