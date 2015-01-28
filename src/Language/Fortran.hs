@@ -173,6 +173,7 @@ data IntentAttr p = In p
 				
 data Fortran  p = Assg p SrcSpan (Expr p) (Expr p) 
                 | For  p SrcSpan (VarName p) (Expr p) (Expr p) (Expr p) (Fortran p)
+                | DoWhile  p SrcSpan (Expr p) (Fortran p)
                 | FSeq p SrcSpan (Fortran p) (Fortran p)
                 | If   p SrcSpan (Expr p) (Fortran p) [((Expr p),(Fortran p))] (Maybe (Fortran p))
                 | Allocate p SrcSpan (Expr p) (Expr p)
@@ -328,6 +329,7 @@ instance Span (Expr a) where
 instance Span (Fortran a) where
     srcSpan (Assg x sp e1 e2)        = sp
     srcSpan (For x sp v e1 e2 e3 fs) = sp
+    srcSpan (DoWhile x sp e fs)      = sp
     srcSpan (FSeq x sp f1 f2)        = sp
     srcSpan (If x sp e f1 fes f3)    = sp
     srcSpan (Allocate x sp e1 e2)    = sp
@@ -451,6 +453,7 @@ instance Tagged DataForm where
 instance Tagged Fortran where
     tag (Assg x s e1 e2)        = x
     tag (For x s v e1 e2 e3 fs) = x
+    tag (DoWhile x sp e fs)        = x
     tag (FSeq x sp f1 f2)       = x
     tag (If x sp e f1 fes f3)   = x
     tag (Allocate x sp e1 e2)   = x

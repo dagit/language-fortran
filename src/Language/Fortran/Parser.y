@@ -1078,6 +1078,7 @@ do_construct
 block_do_construct :: { Fortran A0 } 
 block_do_construct                  
 : srcloc nonlabel_do_stmt newline do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $4) } 
+| srcloc DO WHILE  '(' logical_expr ')' newline do_block {% getSrcSpan $1 >>= (\s -> return $ DoWhile () s $5 $8) }
 | srcloc DO num ',' loop_control newline do_block_num 
                     {% do { (fs, n) <- return $ $7;
 			    s       <- getSrcSpan $1;
@@ -1103,7 +1104,6 @@ block_do_construct
 nonlabel_do_stmt :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
 nonlabel_do_stmt
   : DO loop_control                  { $2 }
-  | DO WHILE loop_control            { $3 }
   | DO                               {% getSrcSpanNull >>= (\s -> return $ (VarName () "", NullExpr () s, NullExpr () s, NullExpr () s)) }
 
 loop_control :: { (VarName A0, Expr A0, Expr A0, Expr A0) }
