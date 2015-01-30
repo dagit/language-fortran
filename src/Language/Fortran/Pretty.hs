@@ -447,6 +447,8 @@ instance (Indentor (Fortran p),
           OutputG (Fortran p) v, OutputG (Spec p) v, Alts v) => OutputIndF (Fortran p) v where
 
     outputIndF i t@(Assg _ _ v e)            = (indR t i)++outputG v++" = "++outputG e
+    outputIndF i t@(DoWhile _ _ e f)         = (indR t i)++"do while (" ++ outputG e ++ ")\n" ++ 
+                                                 outputIndG (i+1) f ++ "\n" ++ (indR t i) ++ "end do"
     outputIndF i t@(For _ _  (VarName _ "") e e' e'' f)   = (indR t i)++"do \n"++
                                          (outputIndG (i+1) f)++"\n"++(indR t i)++"end do"
     outputIndF i t@(For _ _  v e e' e'' f)   = (indR t i)++"do"++" "++outputG v++" = "++outputG e++", "++
@@ -493,7 +495,8 @@ instance (Indentor (Fortran p),
     outputIndF i t@(Pause _ _ s)                  = (indR t i)++"pause "++ show s ++ "\n"
     outputIndF i t@(Rewind _ _  ss)                  = (indR t i)++"rewind "++asTuple outputG ss++"\n"
     outputIndF i t@(Stop _ _ e)                     = (indR t i)++"stop "++outputG e++"\n"
-    outputIndF i t@(Where _ _ e f)                  = (indR t i)++"where ("++outputG e++") "++outputG f
+    outputIndF i t@(Where _ _ e f Nothing)          = (indR t i)++"where ("++outputG e++") "++outputG f
+    outputIndF i t@(Where _ _ e f (Just f'))        = (indR t i)++"where ("++outputG e++") "++(outputIndG (i + 1) f)++"\n"++(indR t i)++"elsewhere\n" ++ (indR t i) ++ (outputIndG (i + 1) f') ++ "\n" ++ (indR t i) ++ "end where"
     outputIndF i t@(Write _ _ ss es)                = (indR t i)++"write "++asTuple outputG ss++" "++(concat (intersperse "," (map outputG es)))++"\n"
     outputIndF i t@(PointerAssg _ _ e e')           = (indR t i)++outputG e++" => "++outputG e'++"\n"
     outputIndF i t@(Return _ _ e)                   = (indR t i)++"return "++outputG e++"\n"

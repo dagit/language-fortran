@@ -195,7 +195,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | Pause p SrcSpan String
                 | Rewind p SrcSpan [Spec p]
                 | Stop p SrcSpan (Expr p)
-                | Where p SrcSpan (Expr p) (Fortran p)
+                | Where p SrcSpan (Expr p) (Fortran p) (Maybe (Fortran p))
                 | Write p SrcSpan [Spec p] [(Expr p)]
                 | PointerAssg p SrcSpan  (Expr p) (Expr p)
                 | Return p SrcSpan  (Expr p)
@@ -351,7 +351,7 @@ instance Span (Fortran a) where
     srcSpan (Pause x sp _)           = sp
     srcSpan (Rewind x sp s)          = sp 
     srcSpan (Stop x sp e)            = sp
-    srcSpan (Where x sp e f)         = sp 
+    srcSpan (Where x sp e f _)       = sp 
     srcSpan (Write x sp s e)         = sp
     srcSpan (PointerAssg x sp e1 e2) = sp
     srcSpan (Return x sp e)          = sp
@@ -475,7 +475,7 @@ instance Tagged Fortran where
     tag (Pause x sp _)          = x
     tag (Rewind x sp s)         = x 
     tag (Stop x sp e)           = x
-    tag (Where x sp e f)        = x 
+    tag (Where x sp e f _)      = x 
     tag (Write x sp s e)        = x
     tag (PointerAssg x sp e1 e2) = x
     tag (Return x sp e)         = x

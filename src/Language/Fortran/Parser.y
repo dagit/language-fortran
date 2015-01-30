@@ -1163,12 +1163,10 @@ executable_construct
 
 executable_constructP :: { Fortran A0 }
 executable_constructP
-: --  | case_construct
-    do_construct                                  { $1 }
+:   do_construct                                  { $1 }
   | if_construct                                  { $1 }
   | action_stmt                                   { $1 }
---  | forall_construct
---  | where_construct
+
  
 equivalence_stmt :: { Decl A0 }
 equivalence_stmt 
@@ -1183,7 +1181,7 @@ action_stmt
   | close_stmt                                    { $1 }
   | continue_stmt                                 { $1 }
   | cycle_stmt                                    { $1 }
-| srcloc data_stmt                              {% getSrcSpan $1 >>= (\s -> return $ DataStmt () s $2) }
+  | srcloc data_stmt                              {% getSrcSpan $1 >>= (\s -> return $ DataStmt () s $2) }
   | deallocate_stmt                               { $1 }
   | endfile_stmt                                  { $1 }
 --  | end_function_stmt
@@ -1206,7 +1204,7 @@ action_stmt
   | stop_stmt                                     { $1 }
   | where_stmt                                    { $1 }
   | write_stmt                                    { $1 }
-| srcloc TEXT				          {% getSrcSpan $1 >>= (\s -> return $ TextStmt () s $2) }
+  | srcloc TEXT				          {% getSrcSpan $1 >>= (\s -> return $ TextStmt () s $2) }
 
 pause_stmt :: { Fortran A0 }
 pause_stmt : srcloc PAUSE STR {% getSrcSpan $1 >>= (\s -> return $ Pause () s $3) }
@@ -1767,7 +1765,9 @@ stop_code
 
 where_stmt :: { Fortran A0 }
 where_stmt
-: srcloc WHERE '(' mask_expr ')' where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $6) }
+: srcloc WHERE '(' mask_expr ')' where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $6 Nothing) } 
+|  srcloc WHERE '(' mask_expr ')' where_assignment_stmt newline ELSEWHERE where_assignment_stmt 
+newline END WHERE {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $6 (Just $9)) }
 
 where_assignment_stmt :: { Fortran A0 }
 where_assignment_stmt
