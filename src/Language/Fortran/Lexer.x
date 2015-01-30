@@ -214,7 +214,7 @@ lexer' = do s <- getInput
 	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace` return ()
                                                case tok of
 					          NewLine    -> lexNewline >> (return tok)
-					          ContLine   -> (discard len) >> lexNewline >> lexer'
+					          ContLine   -> (discard (len - 1)) >> lexNewline >> lexer'
 					          ContLineNoNewLine  -> (discard len) >> lexer'
 					          ContLineAlt -> lexNewline >> (discard (len - 1)) >> lexer'
 					 	  ContLineWithComment -> lexNewline >> lexNewline  >> (discard (len - 2)) >> lexer'

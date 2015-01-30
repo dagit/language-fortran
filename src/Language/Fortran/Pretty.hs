@@ -17,7 +17,7 @@
 module Language.Fortran.Pretty where
 
 import Language.Fortran
-
+import Debug.Trace
 import Data.List
 
 data Alt1 = Alt1
@@ -233,7 +233,9 @@ instance (OutputG (ArgList p) v,
   outputF (ArrayT _ rs bt as e               e')               = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++outputFList as
 
 
-instance (OutputG (MeasureUnitSpec p) v, Alts v) => OutputF (Attr p) v where --new
+instance (OutputG (ArgList p) v, OutputG (BinOp p) v, OutputG (Expr p) v, OutputG (UnaryOp p) v, 
+          OutputG (VarName p) v, 
+          OutputG (MeasureUnitSpec p) v, Alts v) => OutputF (Attr p) v where --new
     outputF (Allocatable _)      = "allocatable "
     outputF (Parameter _)        = "parameter "
     outputF (External _)         = "external "
@@ -249,7 +251,7 @@ instance (OutputG (MeasureUnitSpec p) v, Alts v) => OutputF (Attr p) v where --n
     outputF (Public _)           = "public "
     outputF (Private _)          = "private "
     outputF (Sequence _)         = "sequence "
-    outputF (Dimension _ _)      = "dimension "
+    outputF (Dimension _ r)      = "dimension (" ++ (showRanges r) ++ ")"
     outputF (MeasureUnit _ u)    = "unit("++outputG u++")"
 
 instance (Alts v) => OutputF (MeasureUnitSpec p) v where
