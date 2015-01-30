@@ -1766,8 +1766,9 @@ stop_code
 where_stmt :: { Fortran A0 }
 where_stmt
 : srcloc WHERE '(' mask_expr ')' where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $6 Nothing) } 
-|  srcloc WHERE '(' mask_expr ')' where_assignment_stmt newline ELSEWHERE where_assignment_stmt 
-newline END WHERE {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $6 (Just $9)) }
+| srcloc WHERE '(' mask_expr ')' newline where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $7 Nothing) } 
+|  srcloc WHERE '(' mask_expr ')' newline where_assignment_stmt newline ELSEWHERE newline where_assignment_stmt 
+newline END WHERE {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $7 (Just $11)) }
 
 where_assignment_stmt :: { Fortran A0 }
 where_assignment_stmt
