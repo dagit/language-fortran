@@ -22,10 +22,12 @@ import Data.List
 
 data Alt1 = Alt1
 data Alt2 = Alt2
+data Alt3 = Alt3
 
 class Alts a 
 instance Alts Alt1
 instance Alts Alt2
+instance Alts Alt3
 
 --instance (OutputF (ProgUnit p) Alt1) => Show (ProgUnit p) where
 --    show p = let ?variant = Alt1 in outputF p

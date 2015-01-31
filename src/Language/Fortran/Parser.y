@@ -4,7 +4,7 @@ module Language.Fortran.Parser  where
 import Language.Fortran
 import Language.Fortran.PreProcess
 
-import Language.Haskell.Syntax (SrcLoc(..))
+import qualified Language.Haskell.Syntax as LH (SrcLoc(..))
 import Language.Haskell.ParseMonad 
 import Language.Fortran.Lexer
 import Data.Char (toLower)
@@ -1788,7 +1788,7 @@ srcloc :: { SrcLoc }  :    {% getSrcLoc' }
 
 {
 
-getSrcLoc' = do (SrcLoc f l c) <- getSrcLoc
+getSrcLoc' = do (LH.SrcLoc f l c) <- getSrcLoc
                 return (SrcLoc f l (c - 1))
 
 -- Initial annotations from parser
