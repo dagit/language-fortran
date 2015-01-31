@@ -295,7 +295,7 @@ module
    : srcloc module_stmt use_stmt_list implicit_part specification_part_top module_subprogram_part end_module_stmt newline0
          {%  do { s <- getSrcSpan $1;
                   name <- cmpNames $2 $7  "module";
-		  return (Module ()s name $3 $4 $5 $6); } }
+		  return (Module () s name $3 $4 $5 $6); } }
 
 module_stmt :: { SubName A0 }
 module_stmt
