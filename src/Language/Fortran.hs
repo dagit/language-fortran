@@ -17,13 +17,8 @@ import Data.Generics -- Typeable class and boilerplate generic functions
 
 import Data.Maybe
 import Data.List
+-- import Language.Haskell.Syntax (SrcLoc(..))
 
-<<<<<<< Updated upstream
-
-import Language.Haskell.Syntax (SrcLoc(..))
-
-=======
->>>>>>> Stashed changes
 -----------------------------------------------------------------------------------
 -- Language definition for Fortran (covers a lot of standards, but still incomplete)
 --
@@ -51,7 +46,6 @@ data SrcLoc = SrcLoc {
 instance Show SrcLoc where
     -- A special instance if the filename is set to "compact" to reduce size of outputs
     show (SrcLoc "compact" l c) = "{l" ++ show l ++ ",c" ++ show c ++ "}"
-
     show (SrcLoc f l c) = "{" ++ f ++ ", line = " ++ show l ++ ", col = " ++ show c ++ "}"
 
 
