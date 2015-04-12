@@ -31,12 +31,8 @@ program is transformed to:
 module Language.Fortran.PreProcess where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
-import Text.ParserCombinators.Parsec.Expr
-import qualified Text.ParserCombinators.Parsec.Token as Token
-import Text.ParserCombinators.Parsec.Language
 import System.Environment
 
-import Debug.Trace
 
 num = many1 digit
 small = lower <|> char '_'
