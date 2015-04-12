@@ -28,7 +28,10 @@ program is transformed to:
 >       17 end do
 >     end do
 -}
-module Language.Fortran.PreProcess where
+module Language.Fortran.PreProcess (
+    pre_process
+  , parseExpr
+  ) where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment

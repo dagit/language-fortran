@@ -1,5 +1,17 @@
 {
-module Language.Fortran.Parser  where
+module Language.Fortran.Parser (
+    parser
+  , include_parser
+    -- * Helpers
+  , fst3
+  , snd3
+  , trd3
+  , fst4
+  , snd4
+  , trd4
+  , frh4
+  )
+  where
 
 import Language.Fortran
 import Language.Fortran.PreProcess
