@@ -1,30 +1,33 @@
-{-
+{-|
 
-The following provides a string -> string preprocessor for Fortran programs that deals with
-label-delimited 'do'-'continue' blocks of FORTRAN 77 era. With a traditional LR(1) parser, these are
-not easily (or not at all) parsable. Consider the valid FORTRAN 77 code:
+The following provides a string → string preprocessor for Fortran
+programs that deals with label-delimited @do@-@continue@ blocks of
+FORTRAN 77 era. With a traditional LR(1) parser, these are not easily
+(or not at all) parsable. Consider the valid FORTRAN 77 code:
 
-     do j = 1,5
-       do 17 i=1,10
-         print *,i      
-       17 continue
-     end do 
+>     do j = 1,5
+>       do 17 i=1,10
+>         print *,i
+>       17 continue
+>     end do
 
-Here the 'continue' acts as an 'end do' (not as a usual 'continue' statement) because it is labelled with the same
-label '17' as the 'do' statement which starts the block. Parsing this requires arbitrary look-ahead (e.g., LR(infinity))
-which is provided by the following parsec parser, but not by the 'happy' parser generator. 
+Here the \'continue\' acts as an \'end do\' (not as a usual
+\'continue\' statement) because it is labelled with the same label
+\'17\' as the \'do\' statement which starts the block. Parsing this
+requires arbitrary look-ahead (e.g., LR(infinity)) which is provided
+by the following parsec parser, but not by the \'happy\' parser
+generator.
 
-This pre processor is currently quite heavy handed. It replaces 'continue' in the above program with 'end do'. E.g., 
-the above program is transformed to:
+This pre processor is currently quite heavy handed. It replaces
+\'continue\' in the above program with \'end do\'. E.g., the above
+program is transformed to:
 
-     do j = 1,5
-       do 17 i=1,10
-         print *,i      
-       17 end do
-     end do 
-
+>     do j = 1,5
+>       do 17 i=1,10
+>         print *,i
+>       17 end do
+>     end do
 -}
-
 module Language.Fortran.PreProcess where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
