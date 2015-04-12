@@ -44,8 +44,8 @@ manyTillEnd p end =
     scan where scan  = (try end) <|> do { x <- p; xs <- scan; return (x:xs) }
    
 pre_parser labels = manyTillEnd anyChar 
-                      (try $ if (labels == []) then (try $ end_or_start_do labels) <|> (eof >> return "")
-                                               else  end_or_start_do labels)                  
+                      (try $ if null labels then try (end_or_start_do labels) <|> (eof >> return "")
+                                            else  end_or_start_do labels)
 
 end_or_start_do labels = (try $ doBlock labels) <|> (end_do labels)
 
@@ -72,7 +72,7 @@ end_do labels = do label' <- optionMaybe (do {space; n <- num; space; return n})
                                                          else -- Labels don't match!
                                                               -- If the label doesn't appear anywhere in the label stack, 
                                                               --   then this is allowed (e.g. extra 'continue' points)
-                                                              if (not ((Just m) `elem` labels)) then
+                                                              if Just m `notElem` labels then
                                                                   do ender <- end_do_marker <|> continue_non_replace
                                                                      return $ " " ++ m ++ " " ++ sp ++ ender
                                                               else
@@ -131,10 +131,10 @@ parseExpr file input =
             setPosition $ (flip setSourceName) file $
                           (flip setSourceLine) 1 $
                           (flip setSourceColumn) 1 $ pos
-            x <- pre_parser []
-            return x
+            pre_parser []
 
-pre_process input = parseExpr "" input
+pre_process :: String -> String
+pre_process = parseExpr ""
              
 go filename = do args <- getArgs
                  srcfile <- readFile filename
