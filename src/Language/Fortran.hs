@@ -1,10 +1,19 @@
--- 
--- Fortran.hs  - 
+{-# LANGUAGE DeriveFunctor, DeriveDataTypeable #-}
+-- |
 -- Based on FortranP.hs from Parameterized Fortran by Martin Erwig.
 --
-
-{-# LANGUAGE DeriveFunctor, DeriveDataTypeable #-}
-
+-- Language definition for Fortran (covers a lot of standards, but still incomplete)
+--
+-- The AST is parameterised by type variable p which allows all nodes
+-- of the AST to be annotated. The default annotation is (). This is
+-- useful for analysis.  The 'Tagged' type class provides the function
+-- @tag :: d a -> a@ to extract these annotations.
+--
+-- Furthermore, many nodes of the tree have a 'SrcSpan' which is the
+-- start and end locations of the syntax in the source file (including
+-- whitespace etc.)  This is useful for error reporting and
+-- refactoring.  The 'Span' type class provides the function @srcSpan
+-- :: d a -> SrcSpan@ which which extracts the span (where possible)
 module Language.Fortran where
 
 --------------------------------------------------------------------------
@@ -20,18 +29,6 @@ import Data.List
 -- import Language.Haskell.Syntax (SrcLoc(..))
 
 -----------------------------------------------------------------------------------
--- Language definition for Fortran (covers a lot of standards, but still incomplete)
---
---  The AST is parameterised by type variable p which allows all nodes of the AST
---  to be annotated. The default annotation is (). This is useful for analysis. 
---    The 'Tagged' type class provides the function 'tag :: d a -> a' to 
---    extract these annotations.
-
---  Furthermore, many nodes of the tree have a 'SrcSpan' which is the start and end
---  locations of the syntax in the source file (including whitespace etc.)
---  This is useful for error reporting and refactoring. 
---    The 'Span' type class provides the function 'srcSpan :: d a -> SrcSpan' which
---    which extracts the span (where possible)
 
 -----------------------------------------------------------------------------------
 
