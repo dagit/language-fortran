@@ -46,9 +46,11 @@ type SrcSpan = (SrcLoc, SrcLoc)
 
 type Variable = String
 
-type ProgName = String               -- Fortran program names
+-- | Fortran program names
+type ProgName = String
 
-data SubName p  = SubName p String   -- Fortran subroutine names
+-- | Fortran subroutine names
+data SubName p  = SubName p String
                  | NullSubName p
                  deriving (Show, Functor, Typeable, Data, Eq)
  
@@ -63,7 +65,8 @@ data ArgName  p = ArgName p String
 -- Syntax defintions
 --
 
-data Arg      p = Arg p (ArgName p) SrcSpan -- the src span denotes the end of the arg list before ')'
+-- | The src span denotes the end of the arg list before ')'
+data Arg      p = Arg p (ArgName p) SrcSpan
                   deriving (Show, Functor, Typeable, Data, Eq)
 
 data ArgList  p = ArgList p (Expr p)
@@ -83,15 +86,17 @@ data ProgUnit  p = Main      p SrcSpan                      (SubName p)  (Arg p)
                 | IncludeProg p SrcSpan (Decl p) (Maybe (Fortran p))
                 deriving (Show, Functor, Typeable, Data, Eq)
 
+-- | Implicit none or no implicit 
 data Implicit p = ImplicitNone p | ImplicitNull p 
-                -- implicit none or no implicit 
                 deriving (Show, Functor, Typeable, Data, Eq)
 
-type Renames = [(Variable, Variable)] -- renames for "use"s 
+-- | renames for "use"s 
+type Renames = [(Variable, Variable)]
 
 data UseBlock p = UseBlock (Uses p) SrcLoc deriving (Show, Functor, Typeable, Data, Eq)
 
-data Uses p  = Use p (String, Renames) (Uses p) p  -- (second 'p' let's you annotate the 'cons' part of the cell)
+-- | (second 'p' let's you annotate the 'cons' part of the cell)
+data Uses p  = Use p (String, Renames) (Uses p) p
                 | UseNil p deriving (Show, Functor, Typeable, Data, Eq)
 
              --       use's     implicit  decls  stmts
