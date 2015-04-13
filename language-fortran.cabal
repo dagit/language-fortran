@@ -10,10 +10,15 @@ license:             BSD3
 license-file:        LICENSE
 author:              Jason Dagit, Dominic Orchard, Oleg Oshmyan
 maintainer:          dagitj@gmail.com, dom.orchard@gmail.com
+bug-reports:         https://github.com/dagit/language-fortran/issues
 -- copyright:           
 category:            Language
 build-type:          Simple
 cabal-version:       >=1.8
+
+source-repository head
+  type:     git
+  location: https://github.com/dagit/language-fortran
 
 library
   ghc-options:         -Wall
