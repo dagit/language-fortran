@@ -2,7 +2,8 @@
 module Language.Fortran.Lexer (
     Token(..)
   , AlexReturn(..)
-  , alexScan  
+  , alexScan
+  , alexScanTokens
   , lexer
   , lexer'
   ) where
