@@ -1,39 +1,41 @@
-{-
+{-|
 
-The following provides a string -> string preprocessor for Fortran programs that deals with
-label-delimited 'do'-'continue' blocks of FORTRAN 77 era. With a traditional LR(1) parser, these are
-not easily (or not at all) parsable. Consider the valid FORTRAN 77 code:
+The following provides a string → string preprocessor for Fortran
+programs that deals with label-delimited @do@-@continue@ blocks of
+FORTRAN 77 era. With a traditional LR(1) parser, these are not easily
+(or not at all) parsable. Consider the valid FORTRAN 77 code:
 
-     do j = 1,5
-       do 17 i=1,10
-         print *,i      
-       17 continue
-     end do 
+>     do j = 1,5
+>       do 17 i=1,10
+>         print *,i
+>       17 continue
+>     end do
 
-Here the 'continue' acts as an 'end do' (not as a usual 'continue' statement) because it is labelled with the same
-label '17' as the 'do' statement which starts the block. Parsing this requires arbitrary look-ahead (e.g., LR(infinity))
-which is provided by the following parsec parser, but not by the 'happy' parser generator. 
+Here the \'continue\' acts as an \'end do\' (not as a usual
+\'continue\' statement) because it is labelled with the same label
+\'17\' as the \'do\' statement which starts the block. Parsing this
+requires arbitrary look-ahead (e.g., LR(infinity)) which is provided
+by the following parsec parser, but not by the \'happy\' parser
+generator.
 
-This pre processor is currently quite heavy handed. It replaces 'continue' in the above program with 'end do'. E.g., 
-the above program is transformed to:
+This pre processor is currently quite heavy handed. It replaces
+\'continue\' in the above program with \'end do\'. E.g., the above
+program is transformed to:
 
-     do j = 1,5
-       do 17 i=1,10
-         print *,i      
-       17 end do
-     end do 
-
+>     do j = 1,5
+>       do 17 i=1,10
+>         print *,i
+>       17 end do
+>     end do
 -}
-
-module Language.Fortran.PreProcess where
+module Language.Fortran.PreProcess (
+    pre_process
+  , parseExpr
+  ) where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
-import Text.ParserCombinators.Parsec.Expr
-import qualified Text.ParserCombinators.Parsec.Token as Token
-import Text.ParserCombinators.Parsec.Language
 import System.Environment
 
-import Debug.Trace
 
 num = many1 digit
 small = lower <|> char '_'
@@ -45,8 +47,8 @@ manyTillEnd p end =
     scan where scan  = (try end) <|> do { x <- p; xs <- scan; return (x:xs) }
    
 pre_parser labels = manyTillEnd anyChar 
-                      (try $ if (labels == []) then (try $ end_or_start_do labels) <|> (eof >> return "")
-                                               else  end_or_start_do labels)                  
+                      (try $ if null labels then try (end_or_start_do labels) <|> (eof >> return "")
+                                            else  end_or_start_do labels)
 
 end_or_start_do labels = (try $ doBlock labels) <|> (end_do labels)
 
@@ -73,7 +75,7 @@ end_do labels = do label' <- optionMaybe (do {space; n <- num; space; return n})
                                                          else -- Labels don't match!
                                                               -- If the label doesn't appear anywhere in the label stack, 
                                                               --   then this is allowed (e.g. extra 'continue' points)
-                                                              if (not ((Just m) `elem` labels)) then
+                                                              if Just m `notElem` labels then
                                                                   do ender <- end_do_marker <|> continue_non_replace
                                                                      return $ " " ++ m ++ " " ++ sp ++ ender
                                                               else
@@ -132,10 +134,10 @@ parseExpr file input =
             setPosition $ (flip setSourceName) file $
                           (flip setSourceLine) 1 $
                           (flip setSourceColumn) 1 $ pos
-            x <- pre_parser []
-            return x
+            pre_parser []
 
-pre_process input = parseExpr "" input
+pre_process :: String -> String
+pre_process = parseExpr ""
              
 go filename = do args <- getArgs
                  srcfile <- readFile filename
