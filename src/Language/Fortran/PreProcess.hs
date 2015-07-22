@@ -135,8 +135,19 @@ parseExpr file input =
             x <- pre_parser []
             return x
 
-pre_process input = parseExpr "" input
-             
+{-
+ - Change Fortran77 style C, c, and * comments to ! comments.
+ -}
+processComments source = unlines $ map changeComment $ lines source
+
+changeComment original@(x:xs)
+    | x == 'c'      = '!':xs
+    | x == 'C'      = '!':xs
+    | x == '*'      = '!':xs
+    | otherwise     = original
+
+pre_process input = parseExpr "" (processComments input)
+
 go filename = do args <- getArgs
                  srcfile <- readFile filename
                  return $ parseExpr filename srcfile
