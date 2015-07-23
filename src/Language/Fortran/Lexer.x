@@ -1,5 +1,12 @@
 {
-module Language.Fortran.Lexer where
+module Language.Fortran.Lexer (
+    Token(..)
+  , AlexReturn(..)
+  , alexScan
+  , alexScanTokens
+  , lexer
+  , lexer'
+  ) where
 
 import Data.Char
 import Language.Fortran

@@ -1,5 +1,17 @@
 {
-module Language.Fortran.Parser  where
+module Language.Fortran.Parser (
+    parser
+  , include_parser
+    -- * Helpers
+  , fst3
+  , snd3
+  , trd3
+  , fst4
+  , snd4
+  , trd4
+  , frh4
+  )
+  where
 
 import Language.Fortran
 import Language.Fortran.PreProcess
@@ -366,11 +378,11 @@ declaration_construct_p
 declaration_construct :: { Decl A0 }
 declaration_construct
   : srcloc type_spec_p attr_spec_list '::' entity_decl_list  
-  {% (getSrcSpan $1) >>= (\s -> return $ if isEmpty (fst $3) 
+  {% (getSrcSpan $1) >>= (\s -> return $ if null (fst $3) 
 					 then Decl () s $5 ((BaseType () (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))
 			                 else Decl () s $5 ((ArrayT ()  (fst $3) (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))) }
   | srcloc type_spec_p attr_spec_list entity_decl_list  
-  {% (getSrcSpan $1) >>= (\s -> return $ if isEmpty (fst $3) 
+  {% (getSrcSpan $1) >>= (\s -> return $ if null (fst $3) 
 					     then Decl () s $4 ((BaseType () (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))
 			     	             else Decl () s $4 ((ArrayT () (fst $3) (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))) }
   | interface_block				      { $1 }
@@ -694,7 +706,7 @@ component_def_stmt :: { Decl A0 }
 component_def_stmt
   : srcloc type_spec_p component_attr_spec_list '::' entity_decl_list  
   {% (getSrcSpan $1) >>= (\s -> return $ 
-		     if isEmpty (fst $3) 
+		     if null (fst $3) 
 		     then Decl () s $5 ((BaseType () (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))
 		     else Decl () s $5 ((ArrayT () (fst $3) (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))) }
 
@@ -1865,11 +1877,6 @@ cmpNames x "" z                        = return x
 cmpNames (SubName a x) y z | x==y      = return (SubName a x)
                            | otherwise = parseError (z ++ " name \""++x++"\" does not match \""++y++"\" in end " ++ z ++ " statement\n")
 cmpNames s y z                       = parseError (z ++" names do not match\n")
-
-					   
-isEmpty :: [a] -> Bool
-isEmpty [] = True
-isEmpty _  = False
 
 expr2array_spec (Bound _ _ e e') = (e, e') -- possibly a bit dodgy- uses undefined
 expr2array_spec e = (NullExpr () (srcSpan e) , e)
