@@ -132,6 +132,7 @@ instance (PrintSlave (Expr p) v) => PrintMaster (DataForm p) v where
   printMaster (Data _ ds) = "data "++(concat (intersperse "\n" (map show_data ds))) 
 
 instance (Indentor (Decl p), 
+          PrintSlave (Arg p) v,
           PrintSlave (ArgList p) v,
           PrintSlave (Attr p) v,
           PrintSlave (BinOp p) v,
@@ -139,7 +140,8 @@ instance (Indentor (Decl p),
           PrintSlave (DataForm p) v,
           PrintSlave (Expr p) v, 
           PrintSlave (GSpec p) v, 
-          PrintSlave [InterfaceSpec p] v, 
+          PrintSlave (Implicit p) v,
+          PrintSlave (InterfaceSpec p) v, 
           PrintSlave (MeasureUnitSpec p) v,
           PrintSlave (SubName p) v,
           PrintSlave (UnaryOp p) v, 
@@ -154,17 +156,19 @@ instance (Indentor (Decl p),
   printMaster (AccessStmt _ p []) = ind 1++printSlave p ++ "\n"
   printMaster (AccessStmt _ p gs) = ind 1++printSlave p ++ " :: " ++ (concat . intersperse ", " . map printSlave) gs++"\n"
   printMaster (ExternalStmt _ xs)  = ind 1++"external :: " ++ (concat (intersperse "," xs)) ++ "\n"
-  printMaster (Interface _ (Just g) is) = ind 1 ++ "interface " ++ printSlave g ++ printSlave is ++ ind 1 ++ "end interface" ++ printSlave g ++ "\n"
+  printMaster (Interface _ (Just g) is) = ind 1 ++ "interface " ++ printSlave g ++ printMasterInterfaceSpecs is ++ ind 1 ++ "end interface" ++ printSlave g ++ "\n"
   printMaster (Common _ _ name exps) = ind 1++"common " ++ (case name of 
                                                      Just n -> "/" ++ n ++ "/ "
                                                      Nothing -> "") ++ (concat (intersperse "," (map printMaster exps))) ++ "\n"
-  printMaster (Interface _ Nothing  is) = ind 1 ++ "interface " ++ printSlave is ++ ind 1 ++ "end interface\n"
+  printMaster (Interface _ Nothing  is) = ind 1 ++ "interface " ++ printMasterInterfaceSpecs is ++ ind 1 ++ "end interface\n"
   printMaster (DerivedTypeDef _  _ n as ps ds) = ind 1 ++ "type " ++ printMasterList as ++  " :: " ++ printSlave n ++ "\n" ++ (concat (intersperse "\n" (map (printSlave) ps))) ++ (if (length ps > 0) then "\n" else "") ++ (concatMap (((ind 2) ++) . printSlave) ds) ++ ind 1 ++ "end type " ++ printSlave n ++ "\n\n"
   printMaster (MeasureUnitDef _ _ ds) = ind 1 ++ "unit :: " ++ (concat . intersperse ", " . map showDU) ds ++ "\n"
   printMaster (Include _ i)  = "include "++printSlave i
   printMaster (DSeq _ d d')  = printSlave d++printSlave d'
   printMaster (NullDecl _ _)    = ""
   
+printMasterInterfaceSpecs xs = concat $ intersperse "\n" (map printMaster xs)
+
 show_namelist ((x,xs):[]) = "/" ++ printSlave x ++ "/" ++ (concat (intersperse ", " (map printSlave xs)))
 show_namelist ((x,xs):ys) = "/" ++ printSlave x ++ "/" ++ (concat (intersperse ", " (map printSlave xs))) ++ "," ++ show_namelist ys
 show_data     ((xs,ys)) = "/" ++  printSlave xs ++ "/" ++ printSlave ys
@@ -235,9 +239,6 @@ instance (PrintSlave (Arg p) v, PrintSlave (BinOp p) v, PrintSlave (Expr p) v, P
   printMaster (GName _ s)  = printSlave s
   printMaster (GOper _ op) = "operator("++printSlave op++")"
   printMaster (GAssg _)    = "assignment(=)"
-
-instance (PrintMaster (InterfaceSpec p) v) => PrintMaster [InterfaceSpec p] v where
-    printMaster xs = concat $ intersperse "\n" (map printMaster xs)
 
 instance (PrintSlave (Arg p) v, PrintSlave (Decl p) v, PrintSlave (Implicit p) v,
           PrintSlave (SubName p) v, PPVersion v) => PrintMaster (InterfaceSpec p) v where
