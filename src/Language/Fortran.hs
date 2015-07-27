@@ -80,7 +80,6 @@ data ProgUnit  p = Main      p SrcSpan                      (SubName p)  (Arg p)
                 | Function   p SrcSpan (Maybe (BaseType p)) (SubName p)  (Arg p)  (Maybe (VarName p)) (Block p)
                 | Module     p SrcSpan                      (SubName p)  (Uses p) (Implicit p) (Decl p) [ProgUnit p]
                 | BlockData  p SrcSpan                      (SubName p)  (Uses p) (Implicit p) (Decl p)
-                | PSeq       p SrcSpan (ProgUnit p) (ProgUnit p)   -- sequence of programs
                 | Prog       p SrcSpan (ProgUnit p)                -- useful for {#p: #q : program ... }
                 | NullProg   p SrcSpan                             -- null
                 | IncludeProg p SrcSpan (Decl p) (Maybe (Fortran p))
@@ -316,7 +315,6 @@ instance Span (ProgUnit a) where
     srcSpan (Function x sp _ _ _ _ _) = sp
     srcSpan (Module x sp _ _ _ _ _ )  = sp
     srcSpan (BlockData x sp _ _ _ _)  = sp
-    srcSpan (PSeq x sp _ _)           = sp
     srcSpan (Prog x sp _)             = sp
     srcSpan (NullProg x sp)           = sp
 
@@ -435,7 +433,6 @@ instance Tagged ProgUnit where
     tag (Function x sp _ _ _ _ _)= x
     tag (Module x sp _ _ _ _ _ ) = x
     tag (BlockData x sp _ _ _ _) = x
-    tag (PSeq x sp _ _)          = x
     tag (Prog x sp _)            = x
     tag (NullProg x sp)          = x
 

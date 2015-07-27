@@ -1,18 +1,9 @@
 -- 
 -- Pretty.hs  - 
 -- Based on code by Martin Erwig from Parameterized Fortran
---
+-- Fortran pretty printer 
 
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE OverlappingInstances, ConstraintKinds #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts, FlexibleInstances, UndecidableInstances, MultiParamTypeClasses, DeriveDataTypeable, QuasiQuotes, DeriveFunctor, ImplicitParams, OverlappingInstances, ConstraintKinds #-}
 
 module Language.Fortran.Pretty where
 
@@ -22,79 +13,381 @@ import Data.List
 
 -- | Core pretty-printing primitive
 pprint :: PrettyPrintable t => t -> String
-pprint = let ?variant = Alt1 in outputF
+pprint = let ?variant = DefaultPP in printMaster
 
--- TODO: More documentation on how this works
+-- | Define default pretty-print version constructor
+data DefaultPP = DefaultPP -- Default behaviour
 
-data Alt1 = Alt1
-data Alt2 = Alt2
-data Alt3 = Alt3
+-- | The set of all types which can be used to switch between pretty printer versions
+class PPVersion a 
+instance PPVersion DefaultPP
 
-class Alts a 
-instance Alts Alt1
-instance Alts Alt2
-instance Alts Alt3
+-- Pretty printable types predicate (aliases the PrintMaster constraint)
+type PrettyPrintable t = PrintMaster t DefaultPP 
 
--- Pretty printable types predicate (aliases the OutputF constraint)
-type PrettyPrintable t = OutputF t Alt1 
+-- | Master print behaviour
+class PrintMaster t v where
+    printMaster :: (?variant :: v) => t -> String
 
---instance (OutputF (ProgUnit p) Alt1) => Show (ProgUnit p) where
---    show p = let ?variant = Alt1 in outputF p
+-- | Slave print behaviour
+class PrintSlave t v where
+    printSlave :: (?variant :: v) => t -> String
 
-class OutputF t v where
-    outputF :: (?variant :: v) => t -> String
+-- | Slave print-indenting behaviour
+class PrintIndSlave t v where
+    printIndSlave :: (?variant :: v) => Int -> t -> String
 
-class OutputG t v where
-    outputG :: (?variant :: v) => t -> String
+-- | Master print-indenting behaviour
+class PrintIndMaster t v where
+    printIndMaster :: (?variant :: v) => Int -> t -> String
 
--- Default alt1 instance
-instance (OutputF t Alt1) => OutputG t Alt1 where
-    outputG = outputF
+-- Default slave behaviour
+instance (PrintMaster t DefaultPP) => PrintSlave t DefaultPP where
+    printSlave = printMaster
+instance (PrintIndMaster t DefaultPP) => PrintIndSlave t DefaultPP where
+    printIndSlave = printIndMaster
 
-instance Alts v => OutputG Char v where
-    outputG = show
+-- Behaviour's that all slaves must have i.e., for all versions v 
 
-instance Alts v => OutputG String v where
-    outputG = id
+instance PPVersion v => PrintSlave Char v where
+    printSlave = show
 
-instance (Alts v, OutputG a v, OutputG b v) => OutputG (a, b) v where
-     outputG (a, b) = "(" ++ outputG a ++ ", " ++ outputG b ++ ")"
+instance PPVersion v => PrintSlave String v where
+    printSlave = id
 
-instance (Alts v, OutputG a v) => OutputG [a] v where
-    outputG xs = "[" ++ go xs ++ "]" where go [] = "" 
-                                           go [x] = outputG x
-                                           go (x:xs) = outputG x ++ ", " ++ (go xs)
+instance (PPVersion v, PrintSlave a v, PrintSlave b v) => PrintSlave (a, b) v where
+     printSlave (a, b) = "(" ++ printSlave a ++ ", " ++ printSlave b ++ ")"
 
-instance (Alts v, OutputG a v) => OutputF [a] v where
-    outputF xs = "[" ++ go xs ++ "]" where go [] = "" 
-                                           go [x] = outputG x
-                                           go (x:xs) = outputG x ++ ", " ++ (go xs)
+instance (PPVersion v, PrintSlave a v) => PrintSlave [a] v where
+    printSlave xs = "[" ++ (concat $ intersperse ", " (map printSlave xs)) ++ "]" 
 
-class OutputIndF t v where
-    outputIndF :: (?variant :: v) => Int -> t -> String
+--------------------------------------------------------------------------
 
-class OutputIndG t v where
-    outputIndG :: (?variant :: v) => Int -> t -> String
+-- Printing declarations
 
-instance (OutputIndF t Alt1) => OutputIndG t Alt1 where
-    outputIndG = outputIndF
+instance (PPVersion v, PrintSlave a v) => PrintMaster [a] v where
+    printMaster xs = "[" ++ (concat $ intersperse ", " (map printSlave xs)) ++ "]" 
+
+instance (PrintSlave (Arg p) v, 
+          PrintSlave (BaseType p) v,
+          PrintSlave (Block p) v,
+          PrintSlave (Decl p) v,
+          PrintSlave (Fortran p) v, 
+          PrintSlave (Implicit p) v,
+          PrintSlave (SubName p) v,
+          PrintSlave (VarName p) v,
+          PrintSlave (ProgUnit p) v,
+          PPVersion v) => PrintMaster (ProgUnit p) v where
+  printMaster (Sub _ _ (Just p) n a b)  = printSlave p ++ " subroutine "++(printSlave n)++printSlave a++"\n"++
+                             printSlave b++
+                          "\nend subroutine "++(printSlave n)++"\n"
+  printMaster (Sub _ _ Nothing n a b)  = "subroutine "++(printSlave n)++printSlave a++"\n"++
+                             printSlave b++
+                          "\nend subroutine "++(printSlave n)++"\n"
+  printMaster (Function _ _ (Just p) n a (Just r) b)  = printSlave p ++ " function "++(printSlave n)++printSlave a++" result("++printSlave r++")\n"++
+                             printSlave b++
+                          "\nend function "++(printSlave n)++"\n"
+  printMaster (Function _ _ (Just p) n a Nothing b)  = printSlave p ++ " function "++(printSlave n)++printSlave a++"\n"++
+                             printSlave b++
+                          "\nend function "++(printSlave n)++"\n"
+  printMaster (Function _ _ Nothing n a (Just r) b) = "function "++(printSlave n)++printSlave a++" result("++printSlave r++")\n"++
+                             printSlave b++
+                          "\nend function "++(printSlave n)++"\n"
+  printMaster (Function _ _ Nothing n a Nothing b) = "function "++(printSlave n)++printSlave a++"\n"++
+                             printSlave b++
+                          "\nend function "++(printSlave n)++"\n"
+  printMaster (Main _ _ n a b [])     = "program "++(printSlave n) ++ 
+                                (if not (isEmptyArg a) then (printSlave a) else ""++"\n") ++
+                                printSlave b ++
+                                "\nend program "++ (printSlave n) ++"\n"
+  printMaster (Main _ _ n a b ps)     = "program "++(printSlave n) ++ 
+                                (if not (isEmptyArg a) then (printSlave a) else ""++"\n") ++
+                                printSlave b ++
+                                "\ncontains\n" ++
+                                (concatMap printSlave ps) ++
+                                "\nend program "++(printSlave n)++"\n"
+
+  printMaster (Module _ _ n us i ds []) = "module "++(printSlave n)++"\n" ++
+                             showUse us ++
+                             printSlave i ++
+                             printSlave ds ++
+                          "end module " ++ (printSlave n)++"\n"
+  printMaster (Module _ _ n us i ds ps) = "module "++(printSlave n)++"\n" ++
+                             showUse us ++
+                             printSlave i ++
+                             printSlave ds ++
+			     "\ncontains\n" ++
+                             concatMap printSlave ps ++
+                          "end module " ++ (printSlave n)++"\n"
+  printMaster (BlockData _ _ n us i ds) = "block data " ++ (printSlave n) ++ "\n" ++
+                             showUse us ++
+                             printSlave i ++
+                             printSlave ds ++
+                          "end block data " ++ (printSlave n)++"\n"
+  printMaster (Prog _ _ p)     = printSlave p
+  printMaster (NullProg _ _)    = ""
+  printMaster (IncludeProg _ _ ds Nothing) = printSlave ds 
+  printMaster (IncludeProg _ _ ds (Just f)) = printSlave ds ++ "\n" ++ printSlave f
+
+instance (PrintSlave (Fortran p) v, PrintSlave (Decl p) v, PrintSlave (Implicit p) v, PPVersion v) =>
+            PrintMaster (Block p) v where
+  printMaster (Block _ (UseBlock us _) i sp ds f) = showUse us++printSlave i++(printSlave ds)++printSlave f
 
 
--- Fortran pretty printer 
+instance (PrintSlave (Expr p) v) => PrintMaster (DataForm p) v where
+  printMaster (Data _ ds) = "data "++(concat (intersperse "\n" (map show_data ds))) 
 
---showAllocate ((e,b):[]) = outputG e++"("++showRanges b++")" --new
---showAllocate ((e,b):as) = outputG e++"("++showRanges b++")"++", "++showAllocate as	--new
+instance (Indentor (Decl p), 
+          PrintSlave (ArgList p) v,
+          PrintSlave (Attr p) v,
+          PrintSlave (BinOp p) v,
+          PrintSlave (Decl p) v,
+          PrintSlave (DataForm p) v,
+          PrintSlave (Expr p) v, 
+          PrintSlave (GSpec p) v, 
+          PrintSlave (InterfaceSpec p) v, 
+          PrintSlave (MeasureUnitSpec p) v,
+          PrintSlave (SubName p) v,
+          PrintSlave (UnaryOp p) v, 
+          PrintSlave (VarName p) v,
+          PrintSlave (Type p) v,
+           PPVersion v) => PrintMaster (Decl p) v where
+  printMaster x@(Decl _ _ vs t)  = (indR x 1)++printSlave t++" :: "++asSeq id (map showDV vs)++"\n"
+  printMaster (Namelist _ ns) = ind 1++"namelist "++show_namelist ns++"\n"
+  printMaster (DataDecl _ ds) = ind 1++ (printSlave ds) ++"\n"
+  printMaster t@(Equivalence  _ _ vs) = (indR t 1)++"equivlance ("++(concat (intersperse "," (map printMaster vs))) ++ ")\n"
+  printMaster (AttrStmt _ p gs) = ind 1++printSlave p ++ " (" ++asSeq id (map showDV gs) ++ ") \n"
+  printMaster (AccessStmt _ p []) = ind 1++printSlave p ++ "\n"
+  printMaster (AccessStmt _ p gs) = ind 1++printSlave p ++ " :: " ++ (concat . intersperse ", " . map printSlave) gs++"\n"
+  printMaster (ExternalStmt _ xs)  = ind 1++"external :: " ++ (concat (intersperse "," xs)) ++ "\n"
+  printMaster (Interface _ (Just g) is) = ind 1 ++ "interface " ++ printSlave g ++ printSlave is ++ ind 1 ++ "end interface" ++ printSlave g ++ "\n"
+  printMaster (Common _ _ name exps) = ind 1++"common " ++ (case name of 
+                                                     Just n -> "/" ++ n ++ "/ "
+                                                     Nothing -> "") ++ (concat (intersperse "," (map printMaster exps))) ++ "\n"
+  printMaster (Interface _ Nothing  is) = ind 1 ++ "interface " ++ printSlave is ++ ind 1 ++ "end interface\n"
+  printMaster (DerivedTypeDef _  _ n as ps ds) = ind 1 ++ "type " ++ printMasterList as ++  " :: " ++ printSlave n ++ "\n" ++ (concat (intersperse "\n" (map (printSlave) ps))) ++ (if (length ps > 0) then "\n" else "") ++ (concatMap (((ind 2) ++) . printSlave) ds) ++ ind 1 ++ "end type " ++ printSlave n ++ "\n\n"
+  printMaster (MeasureUnitDef _ _ ds) = ind 1 ++ "unit :: " ++ (concat . intersperse ", " . map showDU) ds ++ "\n"
+  printMaster (Include _ i)  = "include "++printSlave i
+  printMaster (DSeq _ d d')  = printSlave d++printSlave d'
+  printMaster (NullDecl _ _)    = ""
+  
+show_namelist ((x,xs):[]) = "/" ++ printSlave x ++ "/" ++ (concat (intersperse ", " (map printSlave xs)))
+show_namelist ((x,xs):ys) = "/" ++ printSlave x ++ "/" ++ (concat (intersperse ", " (map printSlave xs))) ++ "," ++ show_namelist ys
+show_data     ((xs,ys)) = "/" ++  printSlave xs ++ "/" ++ printSlave ys
+
+-- showDV :: (Expr,Expr) -> String
+
+showDV (v, NullExpr _ _, Just n)  = (printMaster v) ++ "*" ++ show n
+showDV (v, NullExpr _ _, Nothing) = printMaster v
+showDV (v,e,Nothing)              = printMaster v++" = "++printMaster e
+showDV (v,e,Just n)              = (printMaster v) ++ "*" ++ show n ++ " = "++(printMaster e)
+
+showDU (name,spec) = printMaster name++" = "++printMaster spec
+
+instance (PrintSlave (ArgList p) v, 
+          PrintSlave (BinOp p) v, 
+          PrintSlave (UnaryOp p) v,
+          PrintSlave (BaseType p) v,
+          PrintSlave (Expr p) v,
+          PrintSlave (MeasureUnitSpec p) v,
+          PrintSlave (VarName p) v,
+          PPVersion v) => PrintMaster (Type p) v where
+  printMaster (BaseType _ bt as (NullExpr _ _)  (NullExpr _ _))   = printSlave bt++printMasterList as
+  printMaster (BaseType _ bt as (NullExpr _ _) e')          = printSlave bt++" (len="++printSlave e'++")"++printMasterList as
+  printMaster (BaseType _ bt as e (NullExpr _ _))           = printSlave bt++" (kind="++printSlave e++")"++printMasterList as
+  printMaster (BaseType _ bt as e               e')                = printSlave bt++" (len="++printSlave e'++"kind="++printSlave e++")"++printMasterList as
+  printMaster (ArrayT _ [] bt as (NullExpr _ _) (NullExpr _ _))   = printSlave bt++printMasterList as
+  printMaster (ArrayT _ [] bt as (NullExpr _ _) e')         = printSlave bt++" (len="++printSlave e'++")"++printMasterList as
+  printMaster (ArrayT _ [] bt as e (NullExpr _ _))          = printSlave bt++" (kind="++printSlave e++")"++printMasterList as
+  printMaster (ArrayT _ [] bt as e                e')              = printSlave bt++" (len="++printSlave e'++"kind="++printSlave e++")"++printMasterList as
+  printMaster (ArrayT _ rs bt as (NullExpr _ _)  (NullExpr _ _))  = printSlave bt++" , dimension ("++showRanges rs++")"++printMasterList as
+  printMaster (ArrayT _ rs bt as (NullExpr _ _) e')         = printSlave bt++" (len="++printSlave e'++")"++" , dimension ("++showRanges rs++")"++printMasterList as
+  printMaster (ArrayT _ rs bt as e (NullExpr _ _))          = printSlave bt++" (kind="++printSlave e++")"++" , dimension ("++showRanges rs++")"++printMasterList as
+  printMaster (ArrayT _ rs bt as e               e')               = printSlave bt++" (len="++printSlave e'++"kind="++printSlave e++")"++" , dimension ("++showRanges rs++")"++printMasterList as
 
 
--- showElseIf :: Int -> (Expr,Fortran) -> String
+instance (PrintSlave (ArgList p) v, PrintSlave (BinOp p) v, PrintSlave (Expr p) v, PrintSlave (UnaryOp p) v, 
+          PrintSlave (VarName p) v, 
+          PrintSlave (MeasureUnitSpec p) v, PPVersion v) => PrintMaster (Attr p) v where --new
+    printMaster (Allocatable _)      = "allocatable "
+    printMaster (Parameter _)        = "parameter "
+    printMaster (External _)         = "external "
+    printMaster (Intent _  (In _))   = "intent(in) "
+    printMaster (Intent _ (Out _))   = "intent(out) "
+    printMaster (Intent _ (InOut _)) = "intent(inout) "
+    printMaster (Intrinsic _)        = "intrinsic "
+    printMaster (Optional _)         = "optional "
+    printMaster (Pointer _)          = "pointer "
+    printMaster (Save _)             = "save "
+    printMaster (Target _)           = "target "
+    printMaster (Volatile _)         = "volatile "
+    printMaster (Public _)           = "public "
+    printMaster (Private _)          = "private "
+    printMaster (Sequence _)         = "sequence "
+    printMaster (Dimension _ r)      = "dimension (" ++ (showRanges r) ++ ")"
+    printMaster (MeasureUnit _ u)    = "unit("++printSlave u++")"
 
-showElseIf i (e,f) = (ind i)++"else if ("++outputG e++") then\n"++(ind (i+1))++outputG f++"\n"
+instance (PPVersion v) => PrintMaster (MeasureUnitSpec p) v where
+  printMaster (UnitProduct _ units) = showUnits units
+  printMaster (UnitQuotient _ units1 units2) = showUnits units1++" / "++showUnits units2
+  printMaster (UnitNone _) = ""
+
+instance (PPVersion v) => PrintMaster (Fraction p) v where
+  printMaster (IntegerConst _ s) = "**"++printSlave s
+  printMaster (FractionConst _ p q) = "**("++printSlave p++"/"++printSlave q++")"
+  printMaster (NullFraction _) = ""
+
+instance (PrintSlave (Arg p) v, PrintSlave (BinOp p) v, PrintSlave (Expr p) v, PPVersion v) => PrintMaster (GSpec p) v where
+  printMaster (GName _ s)  = printSlave s
+  printMaster (GOper _ op) = "operator("++printSlave op++")"
+  printMaster (GAssg _)    = "assignment(=)"
+
+instance (PrintSlave (Arg p) v, PrintSlave (Decl p) v, PrintSlave (Implicit p) v,
+          PrintSlave (SubName p) v, PPVersion v) => PrintMaster (InterfaceSpec p) v where
+  printMaster (FunctionInterface _ s as us i ds)   = (ind 1)++ "function " ++ printSlave s ++ printSlave as ++ showUse us ++ printSlave i ++ printSlave ds ++ "\nend function " ++ printSlave s
+  printMaster (SubroutineInterface _ s as us i ds) = (ind 1)++ "subroutine " ++ printSlave s ++ printSlave as ++ showUse us ++ printSlave i ++ printSlave ds ++ "\nend subroutine " ++ printSlave s
+  printMaster (ModuleProcedure _ ss) = (ind 2) ++ "module procedure " ++ concat (intersperse ", " (map (printSlave) ss))
+
+instance (PPVersion v, PrintMaster (Uses p) v) => PrintMaster (UseBlock p) v where
+  printMaster (UseBlock uses _) = printMaster uses
+
+instance (PPVersion v) => PrintMaster (Uses p) v where
+  printMaster u = showUse u
+
+instance (PrintSlave (SubName p) v, PPVersion v) => PrintMaster (BaseType p) v where
+  printMaster (Integer _)       = "integer"
+  printMaster (Real    _)       = "real"
+  printMaster (DoublePrecision _) = "double precision"
+  printMaster (Character  _)    = "character"
+  printMaster (Logical   _)     = "logical"
+  printMaster (DerivedType _ s) = "type ("++printSlave s++")"
+  printMaster (SomeType _)      = error "sometype not valid in output source file"
+
+-- Printing statements and expressions
+-- 
+instance (PrintSlave (ArgList p) v,
+          PrintSlave (BinOp p) v,
+          PrintSlave (Expr p) v,
+          PrintSlave (UnaryOp p) v,
+          PrintSlave (VarName p) v,
+          PPVersion v) => PrintMaster (Expr p) v where
+  printMaster (Con _ _ i)         = i
+  printMaster (ConL _ _ m s)        = m:("\'" ++ s ++ "\'")
+  printMaster (ConS _ _ s)        = s
+  printMaster (Var _ _ vs)        = showPartRefList vs
+  printMaster (Bin _ _ bop e@(Bin _ _ op _ _ ) e'@(Bin _ _ op' _ _)) = checkPrec bop op (paren) (printSlave e)++printSlave bop++ checkPrec bop op' (paren) (printSlave e')
+  printMaster (Bin _ _ bop e@(Bin _ _ op _ _) e')                      = checkPrec bop op (paren) (printSlave e)++printSlave bop++printSlave e'
+  printMaster (Bin _ _ bop e                    e'@(Bin _ _ op' _ _))  = printSlave e++printSlave bop++checkPrec bop op' (paren) (printSlave e')
+  printMaster (Bin _ _ bop e                    e')                      = printSlave e++printSlave bop++printSlave e'
+  printMaster (Unary _ _ uop e)   = "("++printSlave uop++printSlave e++")"
+  printMaster (CallExpr  _ _ s as) = printSlave s ++ printSlave as
+  printMaster (Null _ _)          = "NULL()"
+  printMaster (NullExpr _ _)      = ""
+  printMaster (ESeq _ _ (NullExpr _ _) e)     = printSlave e
+  printMaster (ESeq _ _ e (NullExpr _ _))     = printSlave e
+  printMaster (ESeq _ _ e e')     = printSlave e++","++printSlave e'
+  printMaster (Bound _ _ e e')    = printSlave e++":"++printSlave e'
+  printMaster (Sqrt _ _ e)        = "sqrt("++printSlave e++")"
+  printMaster (ArrayCon _ _ es)   = "(\\" ++ concat (intersperse ", " (map (printSlave) es)) ++ "\\)"
+  printMaster (AssgExpr _ _ v e)  = v ++ "=" ++ printSlave e
+
+instance (PrintIndMaster (Fortran p) v, PPVersion v) => PrintMaster (Fortran p) v where
+  printMaster = printIndMaster 1
+
+instance (PrintSlave (ArgName p) v, PPVersion v) => PrintMaster (Arg p) v where
+  printMaster (Arg _ vs _) = "("++ printSlave vs ++")"
+  
+instance (PrintSlave (Expr p) v, PPVersion v) => PrintMaster (ArgList p) v where
+  printMaster (ArgList _ es) = "("++printSlave es++")" -- asTuple printSlave es
+  
+instance PPVersion v => PrintMaster (BinOp p) v where
+  printMaster (Plus  _) ="+"
+  printMaster (Minus _) ="-" 
+  printMaster (Mul   _) ="*"
+  printMaster (Div   _) ="/"
+  printMaster (Or    _) =".or."
+  printMaster (And   _) =".and."
+  printMaster (Concat _) ="//"
+  printMaster (Power _) ="**"
+  printMaster (RelEQ _) ="=="
+  printMaster (RelNE _) ="/="
+  printMaster (RelLT _) ="<"
+  printMaster (RelLE _) ="<="
+  printMaster (RelGT _) =">"
+  printMaster (RelGE _) =">="
+
+instance PPVersion v => PrintMaster (UnaryOp p) v where
+  printMaster (UMinus _) = "-"
+  printMaster (Not    _) = ".not."
+  
+instance PPVersion v => PrintMaster (VarName p) v where
+  printMaster (VarName _ v) = v  
+
+instance (PrintSlave (VarName p) v, PrintSlave (ArgName p) v, PPVersion v) => PrintMaster (ArgName p) v where
+    printMaster (ArgName _ a)                    = a  
+    printMaster (ASeq _ (NullArg _) (NullArg _)) = ""
+    printMaster (ASeq _ (NullArg _)  a')         = printSlave a'
+    printMaster (ASeq _ a (NullArg _))           = printSlave a
+    printMaster (ASeq _ a a')                    = printSlave a++","++printSlave a'
+    printMaster (NullArg _)                            = ""
+
+instance PPVersion v => PrintMaster (SubName p) v where
+  printMaster (SubName _ n)   = n
+  printMaster (NullSubName _) = error "subroutine needs a name"
+
+instance PPVersion v => PrintMaster ( Implicit p) v where
+  printMaster (ImplicitNone _) = "   implicit none\n"
+  printMaster (ImplicitNull _) = ""
+  
+instance (PrintSlave (Expr p) v, PPVersion v) => PrintMaster (Spec p) v where
+  printMaster (Access        _ s) = "access = " ++ printSlave s
+  printMaster (Action        _ s) = "action = "++printSlave s
+  printMaster (Advance       _ s) = "advance = "++printSlave s
+  printMaster (Blank         _ s) = "blank = "++printSlave s
+  printMaster (Delim         _ s) = "delim = "++printSlave s
+  printMaster (Direct        _ s) = "direct = "++printSlave s
+  printMaster (End           _ s) = "end = "++printSlave s
+  printMaster (Eor           _ s) = "eor = "++printSlave s
+  printMaster (Err           _ s) = "err = "++printSlave s
+  printMaster (Exist         _ s) = "exist = "++printSlave s
+  printMaster (File          _ s) = "file = "++printSlave s
+  printMaster (FMT           _ s) = "fmt = "++printSlave s
+  printMaster (Form          _ s) = "form = "++printSlave s
+  printMaster (Formatted     _ s) = "formatted = "++printSlave s
+  printMaster (Unformatted   _ s) = "unformatted = "++printSlave s
+  printMaster (IOLength      _ s) = "iolength = "++printSlave s
+  printMaster (IOStat        _ s) = "iostat = "++printSlave s
+  printMaster (Opened        _ s) = "opened = "++printSlave s
+  printMaster (Name          _ s) = "name = "++printSlave s
+  printMaster (Named         _ s) = "named = "++printSlave s
+  printMaster (NextRec       _ s) = "nextrec = "++printSlave s
+  printMaster (NML           _ s) = "nml = "++printSlave s
+  printMaster (NoSpec        _ s) = printSlave s
+  printMaster (Floating      _ s1 s2) = printSlave s1 ++ "F" ++ printSlave s2
+  printMaster (Number        _ s) = "number = "++printSlave s
+  printMaster (Pad           _ s) = "pad = "++printSlave s
+  printMaster (Position      _ s) = "position = "++printSlave s
+  printMaster (Read          _ s) = "read = "++printSlave s
+  printMaster (ReadWrite     _ s) = "readwrite = "++printSlave s
+  printMaster (WriteSp       _ s) = "write = "++printSlave s
+  printMaster (Rec           _ s) = "rec = "++printSlave s
+  printMaster (Recl          _ s) = "recl = "++printSlave s
+  printMaster (Sequential    _ s) = "sequential = "++printSlave s
+  printMaster (Size          _ s) = "size = "++printSlave s
+  printMaster (Status        _ s) = "status = "++printSlave s
+  printMaster (StringLit        _ s) = "'" ++ s ++ "'"
+  printMaster (Unit _ s)          = "unit = "++printSlave s
+  printMaster (Delimiter _)       = "/"
+
+
+
+showElseIf i (e,f) = (ind i)++"else if ("++printSlave e++") then\n"++(ind (i+1))++printSlave f++"\n"
 
 showForall [] = "error"
-showForall ((s,e,e',NullExpr _ _):[]) = s++"="++outputG e++":"++outputG e'
-showForall ((s,e,e',e''):[]) = s++"="++outputG e++":"++outputG e'++"; "++outputG e''
-showForall ((s,e,e',NullExpr _ _):is) = s++"="++outputG e++":"++outputG e'++", "++showForall is
-showForall ((s,e,e',e''):is) = s++"="++outputG e++":"++outputG e'++"; "++outputG e''++", "++showForall is
+showForall ((s,e,e',NullExpr _ _):[]) = s++"="++printSlave e++":"++printSlave e'
+showForall ((s,e,e',e''):[]) = s++"="++printSlave e++":"++printSlave e'++"; "++printSlave e''
+showForall ((s,e,e',NullExpr _ _):is) = s++"="++printSlave e++":"++printSlave e'++", "++showForall is
+showForall ((s,e,e',e''):is) = s++"="++printSlave e++":"++printSlave e'++"; "++printSlave e''++", "++showForall is
 
 showUse :: Uses p -> String
 showUse (UseNil _) = ""
@@ -102,322 +395,6 @@ showUse (Use _ (n, []) us _) = ((ind 1)++"use "++n++"\n") ++ (showUse us)
 showUse (Use _ (n, renames) us _) = ((ind 1)++"use "++n++", " ++ 
                                      (concat $ intersperse ", " (map (\(a, b) -> a ++ " => " ++ b) renames)) ++
                                    "\n") ++ (showUse us)
-
--- Printing declarations
--- 
-instance (OutputG (Arg p) v, 
-          OutputG (BaseType p) v,
-          OutputG (Block p) v,
-          OutputG (Decl p) v,
-          OutputG (Fortran p) v, 
-          OutputG (Implicit p) v,
-          OutputG (SubName p) v,
-          OutputG (VarName p) v,
-          OutputG (ProgUnit p) v,
-          Alts v) => OutputF (ProgUnit p) v where
-  outputF (Sub _ _ (Just p) n a b)  = outputG p ++ " subroutine "++(outputG n)++outputG a++"\n"++
-                             outputG b++
-                          "\nend subroutine "++(outputG n)++"\n"
-  outputF (Sub _ _ Nothing n a b)  = "subroutine "++(outputG n)++outputG a++"\n"++
-                             outputG b++
-                          "\nend subroutine "++(outputG n)++"\n"
-  outputF (Function _ _ (Just p) n a (Just r) b)  = outputG p ++ " function "++(outputG n)++outputG a++" result("++outputG r++")\n"++
-                             outputG b++
-                          "\nend function "++(outputG n)++"\n"
-  outputF (Function _ _ (Just p) n a Nothing b)  = outputG p ++ " function "++(outputG n)++outputG a++"\n"++
-                             outputG b++
-                          "\nend function "++(outputG n)++"\n"
-  outputF (Function _ _ Nothing n a (Just r) b) = "function "++(outputG n)++outputG a++" result("++outputG r++")\n"++
-                             outputG b++
-                          "\nend function "++(outputG n)++"\n"
-  outputF (Function _ _ Nothing n a Nothing b) = "function "++(outputG n)++outputG a++"\n"++
-                             outputG b++
-                          "\nend function "++(outputG n)++"\n"
-  outputF (Main _ _ n a b [])     = "program "++(outputG n) ++ 
-                                (if not (isEmptyArg a) then (outputG a) else ""++"\n") ++
-                                outputG b ++
-                                "\nend program "++ (outputG n) ++"\n"
-  outputF (Main _ _ n a b ps)     = "program "++(outputG n) ++ 
-                                (if not (isEmptyArg a) then (outputG a) else ""++"\n") ++
-                                outputG b ++
-                                "\ncontains\n" ++
-                                (concatMap outputG ps) ++
-                                "\nend program "++(outputG n)++"\n"
-
-  outputF (Module _ _ n us i ds []) = "module "++(outputG n)++"\n" ++
-                             showUse us ++
-                             outputG i ++
-                             outputG ds ++
-                          "end module " ++ (outputG n)++"\n"
-  outputF (Module _ _ n us i ds ps) = "module "++(outputG n)++"\n" ++
-                             showUse us ++
-                             outputG i ++
-                             outputG ds ++
-			     "\ncontains\n" ++
-                             concatMap outputG ps ++
-                          "end module " ++ (outputG n)++"\n"
-  outputF (BlockData _ _ n us i ds) = "block data " ++ (outputG n) ++ "\n" ++
-                             showUse us ++
-                             outputG i ++
-                             outputG ds ++
-                          "end block data " ++ (outputG n)++"\n"
-  outputF (PSeq _ _ p p')  = outputG p++outputG p'
-  outputF (Prog _ _ p)     = outputG p
-  outputF (NullProg _ _)    = ""
-  outputF (IncludeProg _ _ ds Nothing) = outputG ds 
-  outputF (IncludeProg _ _ ds (Just f)) = outputG ds ++ "\n" ++ outputG f
-
-instance (OutputG (Fortran p) v, OutputG (Decl p) v, OutputG (Implicit p) v, Alts v) =>
-            OutputF (Block p) v where
-  outputF (Block _ (UseBlock us _) i sp ds f) = showUse us++outputG i++(outputG ds)++outputG f
-
-
-instance (OutputG (Expr p) v) => OutputF (DataForm p) v where
-  outputF (Data _ ds) = "data "++(concat (intersperse "\n" (map show_data ds))) 
-
-instance (Indentor (Decl p), 
-          OutputG (ArgList p) v,
-          OutputG (Attr p) v,
-          OutputG (BinOp p) v,
-          OutputG (Decl p) v,
-          OutputG (DataForm p) v,
-          OutputG (Expr p) v, 
-          OutputG (GSpec p) v, 
-          OutputG (InterfaceSpec p) v, 
-          OutputG (MeasureUnitSpec p) v,
-          OutputG (SubName p) v,
-          OutputG (UnaryOp p) v, 
-          OutputG (VarName p) v,
-          OutputG (Type p) v,
-           Alts v) => OutputF (Decl p) v where
-  outputF x@(Decl _ _ vs t)  = (indR x 1)++outputG t++" :: "++asSeq id (map showDV vs)++"\n"
-  outputF (Namelist _ ns) = ind 1++"namelist "++show_namelist ns++"\n"
-  outputF (DataDecl _ ds) = ind 1++ (outputG ds) ++"\n"
-  outputF t@(Equivalence  _ _ vs) = (indR t 1)++"equivlance ("++(concat (intersperse "," (map outputF vs))) ++ ")\n"
-  outputF (AttrStmt _ p gs) = ind 1++outputG p ++ " (" ++asSeq id (map showDV gs) ++ ") \n"
-  outputF (AccessStmt _ p []) = ind 1++outputG p ++ "\n"
-  outputF (AccessStmt _ p gs) = ind 1++outputG p ++ " :: " ++ (concat . intersperse ", " . map outputG) gs++"\n"
-  outputF (ExternalStmt _ xs)  = ind 1++"external :: " ++ (concat (intersperse "," xs)) ++ "\n"
-  outputF (Interface _ (Just g) is) = ind 1 ++ "interface " ++ outputG g ++ outputG is ++ ind 1 ++ "end interface" ++ outputG g ++ "\n"
-  outputF (Common _ _ name exps) = ind 1++"common " ++ (case name of 
-                                                     Just n -> "/" ++ n ++ "/ "
-                                                     Nothing -> "") ++ (concat (intersperse "," (map outputF exps))) ++ "\n"
-  outputF (Interface _ Nothing  is) = ind 1 ++ "interface " ++ outputG is ++ ind 1 ++ "end interface\n"
-  outputF (DerivedTypeDef _  _ n as ps ds) = ind 1 ++ "type " ++ outputFList as ++  " :: " ++ outputG n ++ "\n" ++ (concat (intersperse "\n" (map (outputG) ps))) ++ (if (length ps > 0) then "\n" else "") ++ (concatMap (((ind 2) ++) . outputG) ds) ++ ind 1 ++ "end type " ++ outputG n ++ "\n\n"
-  outputF (MeasureUnitDef _ _ ds) = ind 1 ++ "unit :: " ++ (concat . intersperse ", " . map showDU) ds ++ "\n"
-  outputF (Include _ i)  = "include "++outputG i
-  outputF (DSeq _ d d')  = outputG d++outputG d'
-  outputF (NullDecl _ _)    = ""
-  
-show_namelist ((x,xs):[]) = "/" ++ outputG x ++ "/" ++ (concat (intersperse ", " (map outputG xs)))
-show_namelist ((x,xs):ys) = "/" ++ outputG x ++ "/" ++ (concat (intersperse ", " (map outputG xs))) ++ "," ++ show_namelist ys
-show_data     ((xs,ys)) = "/" ++  outputG xs ++ "/" ++ outputG ys
-
--- showDV :: (Expr,Expr) -> String
-
-showDV (v, NullExpr _ _, Just n)  = (outputF v) ++ "*" ++ show n
-showDV (v, NullExpr _ _, Nothing) = outputF v
-showDV (v,e,Nothing)              = outputF v++" = "++outputF e
-showDV (v,e,Just n)              = (outputF v) ++ "*" ++ show n ++ " = "++(outputF e)
-
-showDU (name,spec) = outputF name++" = "++outputF spec
-
-instance (OutputG (ArgList p) v, 
-          OutputG (BinOp p) v, 
-          OutputG (UnaryOp p) v,
-          OutputG (BaseType p) v,
-          OutputG (Expr p) v,
-          OutputG (MeasureUnitSpec p) v,
-          OutputG (VarName p) v,
-          Alts v) => OutputF (Type p) v where
-  outputF (BaseType _ bt as (NullExpr _ _)  (NullExpr _ _))   = outputG bt++outputFList as
-  outputF (BaseType _ bt as (NullExpr _ _) e')          = outputG bt++" (len="++outputG e'++")"++outputFList as
-  outputF (BaseType _ bt as e (NullExpr _ _))           = outputG bt++" (kind="++outputG e++")"++outputFList as
-  outputF (BaseType _ bt as e               e')                = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++outputFList as
-  outputF (ArrayT _ [] bt as (NullExpr _ _) (NullExpr _ _))   = outputG bt++outputFList as
-  outputF (ArrayT _ [] bt as (NullExpr _ _) e')         = outputG bt++" (len="++outputG e'++")"++outputFList as
-  outputF (ArrayT _ [] bt as e (NullExpr _ _))          = outputG bt++" (kind="++outputG e++")"++outputFList as
-  outputF (ArrayT _ [] bt as e                e')              = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++outputFList as
-  outputF (ArrayT _ rs bt as (NullExpr _ _)  (NullExpr _ _))  = outputG bt++" , dimension ("++showRanges rs++")"++outputFList as
-  outputF (ArrayT _ rs bt as (NullExpr _ _) e')         = outputG bt++" (len="++outputG e'++")"++" , dimension ("++showRanges rs++")"++outputFList as
-  outputF (ArrayT _ rs bt as e (NullExpr _ _))          = outputG bt++" (kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++outputFList as
-  outputF (ArrayT _ rs bt as e               e')               = outputG bt++" (len="++outputG e'++"kind="++outputG e++")"++" , dimension ("++showRanges rs++")"++outputFList as
-
-
-instance (OutputG (ArgList p) v, OutputG (BinOp p) v, OutputG (Expr p) v, OutputG (UnaryOp p) v, 
-          OutputG (VarName p) v, 
-          OutputG (MeasureUnitSpec p) v, Alts v) => OutputF (Attr p) v where --new
-    outputF (Allocatable _)      = "allocatable "
-    outputF (Parameter _)        = "parameter "
-    outputF (External _)         = "external "
-    outputF (Intent _  (In _))   = "intent(in) "
-    outputF (Intent _ (Out _))   = "intent(out) "
-    outputF (Intent _ (InOut _)) = "intent(inout) "
-    outputF (Intrinsic _)        = "intrinsic "
-    outputF (Optional _)         = "optional "
-    outputF (Pointer _)          = "pointer "
-    outputF (Save _)             = "save "
-    outputF (Target _)           = "target "
-    outputF (Volatile _)         = "volatile "
-    outputF (Public _)           = "public "
-    outputF (Private _)          = "private "
-    outputF (Sequence _)         = "sequence "
-    outputF (Dimension _ r)      = "dimension (" ++ (showRanges r) ++ ")"
-    outputF (MeasureUnit _ u)    = "unit("++outputG u++")"
-
-instance (Alts v) => OutputF (MeasureUnitSpec p) v where
-  outputF (UnitProduct _ units) = showUnits units
-  outputF (UnitQuotient _ units1 units2) = showUnits units1++" / "++showUnits units2
-  outputF (UnitNone _) = ""
-
-instance (Alts v) => OutputF (Fraction p) v where
-  outputF (IntegerConst _ s) = "**"++outputG s
-  outputF (FractionConst _ p q) = "**("++outputG p++"/"++outputG q++")"
-  outputF (NullFraction _) = ""
-
-instance (OutputG (Arg p) v, OutputG (BinOp p) v, OutputG (Expr p) v, Alts v) => OutputF (GSpec p) v where
-  outputF (GName _ s)  = outputG s
-  outputF (GOper _ op) = "operator("++outputG op++")"
-  outputF (GAssg _)    = "assignment(=)"
-
-instance (OutputG (Arg p) v, OutputG (Decl p) v, OutputG (Implicit p) v,
-          OutputG (SubName p) v, Alts v) => OutputF (InterfaceSpec p) v where
-  outputF (FunctionInterface _ s as us i ds)   = (ind 1)++ "function " ++ outputG s ++ outputG as ++ showUse us ++ outputG i ++ outputG ds ++ "\nend function " ++ outputG s
-  outputF (SubroutineInterface _ s as us i ds) = (ind 1)++ "subroutine " ++ outputG s ++ outputG as ++ showUse us ++ outputG i ++ outputG ds ++ "\nend subroutine " ++ outputG s
-  outputF (ModuleProcedure _ ss) = (ind 2) ++ "module procedure " ++ concat (intersperse ", " (map (outputG) ss))
-
-instance (Alts v, OutputF (Uses p) v) => OutputF (UseBlock p) v where
-  outputF (UseBlock uses _) = outputF uses
-
-instance (Alts v) => OutputF (Uses p) v where
-  outputF u = showUse u
-
-instance (OutputG (SubName p) v, Alts v) => OutputF (BaseType p) v where
-  outputF (Integer _)       = "integer"
-  outputF (Real    _)       = "real"
-  outputF (DoublePrecision _) = "double precision"
-  outputF (Character  _)    = "character"
-  outputF (Logical   _)     = "logical"
-  outputF (DerivedType _ s) = "type ("++outputG s++")"
-  outputF (SomeType _)      = error "sometype not valid in output source file"
-
--- Printing statements and expressions
--- 
-instance (OutputG (ArgList p) v,
-          OutputG (BinOp p) v,
-          OutputG (Expr p) v,
-          OutputG (UnaryOp p) v,
-          OutputG (VarName p) v,
-          Alts v) => OutputF (Expr p) v where
-  outputF (Con _ _ i)         = i
-  outputF (ConL _ _ m s)        = m:("\'" ++ s ++ "\'")
-  outputF (ConS _ _ s)        = s
-  outputF (Var _ _ vs)        = showPartRefList vs
-  outputF (Bin _ _ bop e@(Bin _ _ op _ _ ) e'@(Bin _ _ op' _ _)) = checkPrec bop op (paren) (outputG e)++outputG bop++ checkPrec bop op' (paren) (outputG e')
-  outputF (Bin _ _ bop e@(Bin _ _ op _ _) e')                      = checkPrec bop op (paren) (outputG e)++outputG bop++outputG e'
-  outputF (Bin _ _ bop e                    e'@(Bin _ _ op' _ _))  = outputG e++outputG bop++checkPrec bop op' (paren) (outputG e')
-  outputF (Bin _ _ bop e                    e')                      = outputG e++outputG bop++outputG e'
-  outputF (Unary _ _ uop e)   = "("++outputG uop++outputG e++")"
-  outputF (CallExpr  _ _ s as) = outputG s ++ outputG as
-  outputF (Null _ _)          = "NULL()"
-  outputF (NullExpr _ _)      = ""
-  outputF (ESeq _ _ (NullExpr _ _) e)     = outputG e
-  outputF (ESeq _ _ e (NullExpr _ _))     = outputG e
-  outputF (ESeq _ _ e e')     = outputG e++","++outputG e'
-  outputF (Bound _ _ e e')    = outputG e++":"++outputG e'
-  outputF (Sqrt _ _ e)        = "sqrt("++outputG e++")"
-  outputF (ArrayCon _ _ es)   = "(\\" ++ concat (intersperse ", " (map (outputG) es)) ++ "\\)"
-  outputF (AssgExpr _ _ v e)  = v ++ "=" ++ outputG e
-
-instance (OutputIndF (Fortran p) v, Alts v) => OutputF (Fortran p) v where
-  outputF = outputIndF 1
-
-instance (OutputG (ArgName p) v, Alts v) => OutputF (Arg p) v where
-  outputF (Arg _ vs _) = "("++ outputG vs ++")"
-  
-instance (OutputG (Expr p) v, Alts v) => OutputF (ArgList p) v where
-  outputF (ArgList _ es) = "("++outputG es++")" -- asTuple outputG es
-  
-instance Alts v => OutputF (BinOp p) v where
-  outputF (Plus  _) ="+"
-  outputF (Minus _) ="-" 
-  outputF (Mul   _) ="*"
-  outputF (Div   _) ="/"
-  outputF (Or    _) =".or."
-  outputF (And   _) =".and."
-  outputF (Concat _) ="//"
-  outputF (Power _) ="**"
-  outputF (RelEQ _) ="=="
-  outputF (RelNE _) ="/="
-  outputF (RelLT _) ="<"
-  outputF (RelLE _) ="<="
-  outputF (RelGT _) =">"
-  outputF (RelGE _) =">="
-
-instance Alts v => OutputF (UnaryOp p) v where
-  outputF (UMinus _) = "-"
-  outputF (Not    _) = ".not."
-  
-instance Alts v => OutputF (VarName p) v where
-  outputF (VarName _ v) = v  
-
-instance (OutputG (VarName p) v, OutputG (ArgName p) v, Alts v) => OutputF (ArgName p) v where
-    outputF (ArgName _ a)                    = a  
-    outputF (ASeq _ (NullArg _) (NullArg _)) = ""
-    outputF (ASeq _ (NullArg _)  a')         = outputG a'
-    outputF (ASeq _ a (NullArg _))           = outputG a
-    outputF (ASeq _ a a')                    = outputG a++","++outputG a'
-    outputF (NullArg _)                            = ""
-
-instance Alts v => OutputF (SubName p) v where
-  outputF (SubName _ n)   = n
-  outputF (NullSubName _) = error "subroutine needs a name"
-
-instance Alts v => OutputF ( Implicit p) v where
-  outputF (ImplicitNone _) = "   implicit none\n"
-  outputF (ImplicitNull _) = ""
-  
-instance (OutputG (Expr p) v, Alts v) => OutputF (Spec p) v where
-  outputF (Access        _ s) = "access = " ++ outputG s
-  outputF (Action        _ s) = "action = "++outputG s
-  outputF (Advance       _ s) = "advance = "++outputG s
-  outputF (Blank         _ s) = "blank = "++outputG s
-  outputF (Delim         _ s) = "delim = "++outputG s
-  outputF (Direct        _ s) = "direct = "++outputG s
-  outputF (End           _ s) = "end = "++outputG s
-  outputF (Eor           _ s) = "eor = "++outputG s
-  outputF (Err           _ s) = "err = "++outputG s
-  outputF (Exist         _ s) = "exist = "++outputG s
-  outputF (File          _ s) = "file = "++outputG s
-  outputF (FMT           _ s) = "fmt = "++outputG s
-  outputF (Form          _ s) = "form = "++outputG s
-  outputF (Formatted     _ s) = "formatted = "++outputG s
-  outputF (Unformatted   _ s) = "unformatted = "++outputG s
-  outputF (IOLength      _ s) = "iolength = "++outputG s
-  outputF (IOStat        _ s) = "iostat = "++outputG s
-  outputF (Opened        _ s) = "opened = "++outputG s
-  outputF (Name          _ s) = "name = "++outputG s
-  outputF (Named         _ s) = "named = "++outputG s
-  outputF (NextRec       _ s) = "nextrec = "++outputG s
-  outputF (NML           _ s) = "nml = "++outputG s
-  outputF (NoSpec        _ s) = outputG s
-  outputF (Floating      _ s1 s2) = outputG s1 ++ "F" ++ outputG s2
-  outputF (Number        _ s) = "number = "++outputG s
-  outputF (Pad           _ s) = "pad = "++outputG s
-  outputF (Position      _ s) = "position = "++outputG s
-  outputF (Read          _ s) = "read = "++outputG s
-  outputF (ReadWrite     _ s) = "readwrite = "++outputG s
-  outputF (WriteSp       _ s) = "write = "++outputG s
-  outputF (Rec           _ s) = "rec = "++outputG s
-  outputF (Recl          _ s) = "recl = "++outputG s
-  outputF (Sequential    _ s) = "sequential = "++outputG s
-  outputF (Size          _ s) = "size = "++outputG s
-  outputF (Status        _ s) = "status = "++outputG s
-  outputF (StringLit        _ s) = "'" ++ s ++ "'"
-  outputF (Unit _ s)          = "unit = "++outputG s
-  outputF (Delimiter _)       = "/"
-
-
 
 
 isEmptyArg (Arg _ as _) = and (isEmptyArgName as)
@@ -450,81 +427,79 @@ opPrec (Power _) = 6
 class Indentor t where
     indR :: t -> Int -> String
 
-
 -- Default indenting for code straight out of the parser
 instance Indentor (p ()) where
     indR t i = ind i
 
-
 instance (Indentor (Fortran p), 
-          OutputG (VarName p) v,
-          OutputG (Expr p) v,
-          OutputG (UnaryOp p) v,
-          OutputG (BinOp p) v, 
-          OutputG (ArgList p) v,
-          OutputIndG (Fortran p) v,
-          OutputG (DataForm p) v, 
-          OutputG (Fortran p) v, OutputG (Spec p) v, Alts v) => OutputIndF (Fortran p) v where
+          PrintSlave (VarName p) v,
+          PrintSlave (Expr p) v,
+          PrintSlave (UnaryOp p) v,
+          PrintSlave (BinOp p) v, 
+          PrintSlave (ArgList p) v,
+          PrintIndSlave (Fortran p) v,
+          PrintSlave (DataForm p) v, 
+          PrintSlave (Fortran p) v, PrintSlave (Spec p) v, PPVersion v) => PrintIndMaster (Fortran p) v where
 
-    outputIndF i t@(Assg _ _ v e)            = (indR t i)++outputG v++" = "++outputG e
-    outputIndF i t@(DoWhile _ _ e f)         = (indR t i)++"do while (" ++ outputG e ++ ")\n" ++ 
-                                                 outputIndG (i+1) f ++ "\n" ++ (indR t i) ++ "end do"
-    outputIndF i t@(For _ _  (VarName _ "") e e' e'' f)   = (indR t i)++"do \n"++
-                                         (outputIndG (i+1) f)++"\n"++(indR t i)++"end do"
-    outputIndF i t@(For _ _  v e e' e'' f)   = (indR t i)++"do"++" "++outputG v++" = "++outputG e++", "++
-                                         outputG e'++", "++outputG e''++"\n"++
-                                         (outputIndG (i+1) f)++"\n"++(indR t i)++"end do"
-    outputIndF i t@(FSeq _ _  f f')              = outputIndG i f++"\n"++outputIndG i f'
-    outputIndF i t@(If _ _  e f [] Nothing)      = (indR t i)++"if ("++outputG e++") then\n"
-                                         ++(outputIndG (i+1) f)++"\n"
+    printIndMaster i t@(Assg _ _ v e)            = (indR t i)++printSlave v++" = "++printSlave e
+    printIndMaster i t@(DoWhile _ _ e f)         = (indR t i)++"do while (" ++ printSlave e ++ ")\n" ++ 
+                                                 printIndSlave (i+1) f ++ "\n" ++ (indR t i) ++ "end do"
+    printIndMaster i t@(For _ _  (VarName _ "") e e' e'' f)   = (indR t i)++"do \n"++
+                                         (printIndSlave (i+1) f)++"\n"++(indR t i)++"end do"
+    printIndMaster i t@(For _ _  v e e' e'' f)   = (indR t i)++"do"++" "++printSlave v++" = "++printSlave e++", "++
+                                         printSlave e'++", "++printSlave e''++"\n"++
+                                         (printIndSlave (i+1) f)++"\n"++(indR t i)++"end do"
+    printIndMaster i t@(FSeq _ _  f f')              = printIndSlave i f++"\n"++printIndSlave i f'
+    printIndMaster i t@(If _ _  e f [] Nothing)      = (indR t i)++"if ("++printSlave e++") then\n"
+                                         ++(printIndSlave (i+1) f)++"\n"
                                          ++(indR t i)++"end if"
-    outputIndF i t@(If _ _  e f [] (Just f'))    = (indR t i)++"if ("++outputG e++") then\n"
-                                         ++(outputIndG (i+1) f)++"\n"
+    printIndMaster i t@(If _ _  e f [] (Just f'))    = (indR t i)++"if ("++printSlave e++") then\n"
+                                         ++(printIndSlave (i+1) f)++"\n"
                                          ++(indR t i)++"else\n"
-                                         ++(outputIndG (i+1) f')++"\n"
+                                         ++(printIndSlave (i+1) f')++"\n"
                                          ++(indR t i)++"end if"
-    outputIndF i t@(If _ _  e f elsif Nothing)    = (indR t i)++"if ("++outputG e++") then\n"
-                                          ++(outputIndG (i+1) f)++"\n"
+    printIndMaster i t@(If _ _  e f elsif Nothing)    = (indR t i)++"if ("++printSlave e++") then\n"
+                                          ++(printIndSlave (i+1) f)++"\n"
                                           ++concat (map (showElseIf i) elsif)
                                           ++(indR t i)++"end if"
-    outputIndF i t@(If _ _  e f elsif (Just f')) = (indR t i)++"if ("++outputG e++") then\n"
-                                          ++(outputIndG (i+1) f)++"\n"
+    printIndMaster i t@(If _ _  e f elsif (Just f')) = (indR t i)++"if ("++printSlave e++") then\n"
+                                          ++(printIndSlave (i+1) f)++"\n"
                                           ++concat (map (showElseIf i) elsif)
                                           ++(indR t i)++"else\n"
-                                          ++(outputIndG (i+1) f')++"\n"
+                                          ++(printIndSlave (i+1) f')++"\n"
                                           ++(indR t i)++"end if"
-    outputIndF i t@(Allocate _ _  a (NullExpr _ _))    = (indR t i)++"allocate (" ++ outputG a ++ ")"
-    outputIndF i t@(Allocate _ _  a s)              = (indR t i)++"allocate ("++ outputG a ++ ", STAT = "++outputG s++ ")"
-    outputIndF i t@(Backspace _ _  ss)               = (indR t i)++"backspace "++asTuple outputG ss++"\n"
-    outputIndF i t@(Call  _ _ sub al)                = indR t i++"call "++outputG sub++outputG al
-    outputIndF i t@(Open  _ _ s)                     = (indR t i)++"open "++asTuple outputG s++"\n"
+    printIndMaster i t@(Allocate _ _  a (NullExpr _ _))    = (indR t i)++"allocate (" ++ printSlave a ++ ")"
+    printIndMaster i t@(Allocate _ _  a s)              = (indR t i)++"allocate ("++ printSlave a ++ ", STAT = "++printSlave s++ ")"
+    printIndMaster i t@(Backspace _ _  ss)               = (indR t i)++"backspace "++asTuple printSlave ss++"\n"
+    printIndMaster i t@(Call  _ _ sub al)                = indR t i++"call "++printSlave sub++printSlave al
+    printIndMaster i t@(Open  _ _ s)                     = (indR t i)++"open "++asTuple printSlave s++"\n"
 
-    outputIndF i t@(Close  _ _ ss)                   = (indR t i)++"close "++asTuple outputG ss++"\n"
-    outputIndF i t@(Continue _ _)                   = (indR t i)++"continue"++"\n"
-    outputIndF i t@(Cycle _ _ s)                    = (indR t i)++"cycle "++outputG s++"\n"
-    outputIndF i t@(DataStmt _ _ d)                 = (indR t i)++(outputG d)++"\n"
-    outputIndF i t@(Deallocate _ _ es e)            = (indR t i)++"deallocate "++asTuple outputG es++outputG e++"\n"
-    outputIndF i t@(Endfile _ _ ss)                 = (indR t i)++"endfile "++asTuple outputG ss++"\n"
-    outputIndF i t@(Exit _ _ s)                     = (indR t i)++"exit "++outputG s
-    outputIndF i t@(Format      _  _ es)            = (indR t i)++"format " ++ (asTuple outputG es)
-    outputIndF i t@(Forall _ _ (is, (NullExpr _ _)) f)    = (indR t i)++"forall ("++showForall is++") "++outputG f
-    outputIndF i t@(Forall _ _ (is,e)            f) = (indR t i)++"forall ("++showForall is++","++outputG e++") "++outputG f
-    outputIndF i t@(Goto _ _ s)                     = (indR t i)++"goto "++outputG s
-    outputIndF i t@(Nullify _ _ es)                 = (indR t i)++"nullify "++asTuple outputG es++"\n"
-    outputIndF i t@(Inquire _ _ ss es)              = (indR t i)++"inquire "++asTuple outputG ss++" "++(concat (intersperse "," (map outputG es)))++"\n"
-    outputIndF i t@(Pause _ _ s)                  = (indR t i)++"pause "++ show s ++ "\n"
-    outputIndF i t@(Rewind _ _  ss)                  = (indR t i)++"rewind "++asTuple outputG ss++"\n"
-    outputIndF i t@(Stop _ _ e)                     = (indR t i)++"stop "++outputG e++"\n"
-    outputIndF i t@(Where _ _ e f Nothing)          = (indR t i)++"where ("++outputG e++") "++outputG f
-    outputIndF i t@(Where _ _ e f (Just f'))        = (indR t i)++"where ("++outputG e++") "++(outputIndG (i + 1) f)++"\n"++(indR t i)++"elsewhere\n" ++ (indR t i) ++ (outputIndG (i + 1) f') ++ "\n" ++ (indR t i) ++ "end where"
-    outputIndF i t@(Write _ _ ss es)                = (indR t i)++"write "++asTuple outputG ss++" "++(concat (intersperse "," (map outputG es)))++"\n"
-    outputIndF i t@(PointerAssg _ _ e e')           = (indR t i)++outputG e++" => "++outputG e'++"\n"
-    outputIndF i t@(Return _ _ e)                   = (indR t i)++"return "++outputG e++"\n"
-    outputIndF i t@(Label _ _ s f)                  = s++" "++outputG f
-    outputIndF i t@(Print _ _ e [])                 = (indR t i)++("print ")++outputG e++("\n")
-    outputIndF i t@(Print _ _ e es)                 = (indR t i)++("print ")++outputG e++", "++(concat (intersperse "," (map outputG es)))++("\n")
-    outputIndF i t@(ReadS _ _ ss es)                = (indR t i)++("read ")++(asTuple outputG ss)++" "++(concat (intersperse "," (map outputG es)))++("\n")
-    outputIndF i t@(NullStmt _ _)		       = ""
+    printIndMaster i t@(Close  _ _ ss)                   = (indR t i)++"close "++asTuple printSlave ss++"\n"
+    printIndMaster i t@(Continue _ _)                   = (indR t i)++"continue"++"\n"
+    printIndMaster i t@(Cycle _ _ s)                    = (indR t i)++"cycle "++printSlave s++"\n"
+    printIndMaster i t@(DataStmt _ _ d)                 = (indR t i)++(printSlave d)++"\n"
+    printIndMaster i t@(Deallocate _ _ es e)            = (indR t i)++"deallocate "++asTuple printSlave es++printSlave e++"\n"
+    printIndMaster i t@(Endfile _ _ ss)                 = (indR t i)++"endfile "++asTuple printSlave ss++"\n"
+    printIndMaster i t@(Exit _ _ s)                     = (indR t i)++"exit "++printSlave s
+    printIndMaster i t@(Format      _  _ es)            = (indR t i)++"format " ++ (asTuple printSlave es)
+    printIndMaster i t@(Forall _ _ (is, (NullExpr _ _)) f)    = (indR t i)++"forall ("++showForall is++") "++printSlave f
+    printIndMaster i t@(Forall _ _ (is,e)            f) = (indR t i)++"forall ("++showForall is++","++printSlave e++") "++printSlave f
+    printIndMaster i t@(Goto _ _ s)                     = (indR t i)++"goto "++printSlave s
+    printIndMaster i t@(Nullify _ _ es)                 = (indR t i)++"nullify "++asTuple printSlave es++"\n"
+    printIndMaster i t@(Inquire _ _ ss es)              = (indR t i)++"inquire "++asTuple printSlave ss++" "++(concat (intersperse "," (map printSlave es)))++"\n"
+    printIndMaster i t@(Pause _ _ s)                  = (indR t i)++"pause "++ show s ++ "\n"
+    printIndMaster i t@(Rewind _ _  ss)                  = (indR t i)++"rewind "++asTuple printSlave ss++"\n"
+    printIndMaster i t@(Stop _ _ e)                     = (indR t i)++"stop "++printSlave e++"\n"
+    printIndMaster i t@(Where _ _ e f Nothing)          = (indR t i)++"where ("++printSlave e++") "++printSlave f
+    printIndMaster i t@(Where _ _ e f (Just f'))        = (indR t i)++"where ("++printSlave e++") "++(printIndSlave (i + 1) f)++"\n"++(indR t i)++"elsewhere\n" ++ (indR t i) ++ (printIndSlave (i + 1) f') ++ "\n" ++ (indR t i) ++ "end where"
+    printIndMaster i t@(Write _ _ ss es)                = (indR t i)++"write "++asTuple printSlave ss++" "++(concat (intersperse "," (map printSlave es)))++"\n"
+    printIndMaster i t@(PointerAssg _ _ e e')           = (indR t i)++printSlave e++" => "++printSlave e'++"\n"
+    printIndMaster i t@(Return _ _ e)                   = (indR t i)++"return "++printSlave e++"\n"
+    printIndMaster i t@(Label _ _ s f)                  = s++" "++printSlave f
+    printIndMaster i t@(Print _ _ e [])                 = (indR t i)++("print ")++printSlave e++("\n")
+    printIndMaster i t@(Print _ _ e es)                 = (indR t i)++("print ")++printSlave e++", "++(concat (intersperse "," (map printSlave es)))++("\n")
+    printIndMaster i t@(ReadS _ _ ss es)                = (indR t i)++("read ")++(asTuple printSlave ss)++" "++(concat (intersperse "," (map printSlave es)))++("\n")
+    printIndMaster i t@(NullStmt _ _)		       = ""
 
 -- infix 7 $+
 -- infix 7 $-
@@ -559,34 +534,34 @@ asParagraphs = printList ["\n","\n\n","\n"]
 
 -- Auxiliary functions
 -- 
-optTuple :: (?variant :: v, Alts v, OutputG (UnaryOp p) v, OutputF (Expr p) v) => [Expr p] -> String
+optTuple :: (?variant :: v, PPVersion v, PrintSlave (UnaryOp p) v, PrintMaster (Expr p) v) => [Expr p] -> String
 optTuple [] = ""
-optTuple xs = asTuple outputF xs
+optTuple xs = asTuple printMaster xs
 -- *optTuple xs = ""
 -- indent and showInd enable indented printing
 -- 
 
-showUnits :: (Alts v, ?variant :: v, OutputF (Fraction p) v) => [(MeasureUnit, Fraction p)] -> String
+showUnits :: (PPVersion v, ?variant :: v, PrintMaster (Fraction p) v) => [(MeasureUnit, Fraction p)] -> String
 showUnits units
   | null units = "1"
-  | otherwise = printList [""," ",""] (\(unit, f) -> unit++outputF f) units
+  | otherwise = printList [""," ",""] (\(unit, f) -> unit++printMaster f) units
 
 
-outputFList :: (Alts v, ?variant :: v, OutputF a v) => [a] -> String
-outputFList  = concat . map (", "++) . map (outputF)
+printMasterList :: (PPVersion v, ?variant :: v, PrintMaster a v) => [a] -> String
+printMasterList  = concat . map (", "++) . map (printMaster)
 
 
 
-showBounds :: (Alts v, ?variant :: v, OutputF (Expr p) v) => (Expr p,Expr p) -> String
+showBounds :: (PPVersion v, ?variant :: v, PrintMaster (Expr p) v) => (Expr p,Expr p) -> String
 showBounds (NullExpr _ _, NullExpr _ _) = ":"
-showBounds (NullExpr _ _, e) = outputF e
-showBounds (e1,e2) = outputF e1++":"++outputF e2
+showBounds (NullExpr _ _, e) = printMaster e
+showBounds (e1,e2) = printMaster e1++":"++printMaster e2
 
-showRanges :: (Alts v, ?variant :: v, OutputF (Expr p) v) => [(Expr p, Expr p)] -> String
+showRanges :: (PPVersion v, ?variant :: v, PrintMaster (Expr p) v) => [(Expr p, Expr p)] -> String
 showRanges = asSeq showBounds
 
-showPartRefList :: (Alts v, ?variant :: v, OutputG (VarName p) v, 
-                    OutputG (UnaryOp p) v, OutputF (Expr p) v) => [(VarName p,[Expr p])] -> String
+showPartRefList :: (PPVersion v, ?variant :: v, PrintSlave (VarName p) v, 
+                    PrintSlave (UnaryOp p) v, PrintMaster (Expr p) v) => [(VarName p,[Expr p])] -> String
 showPartRefList []           = ""
-showPartRefList ((v,es):[]) = outputG v ++ optTuple es 
-showPartRefList ((v,es):xs) = outputG v ++ optTuple es ++ "%" ++ showPartRefList xs
+showPartRefList ((v,es):[]) = printSlave v ++ optTuple es 
+showPartRefList ((v,es):xs) = printSlave v ++ optTuple es ++ "%" ++ showPartRefList xs
