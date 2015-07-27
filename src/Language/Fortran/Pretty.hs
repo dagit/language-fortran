@@ -449,6 +449,12 @@ opPrec (Power _) = 6
 class Indentor t where
     indR :: t -> Int -> String
 
+
+-- Default indenting for code straight out of the parser
+instance Indentor (p ()) where
+    indR t i = ind i
+
+
 instance (Indentor (Fortran p), 
           OutputG (VarName p) v,
           OutputG (Expr p) v,
