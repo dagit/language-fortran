@@ -12,13 +12,19 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE OverlappingInstances, ConstraintKinds #-}
 
 module Language.Fortran.Pretty where
 
 import Language.Fortran
 import Debug.Trace
 import Data.List
+
+-- | Core pretty-printing primitive
+pprint :: PrettyPrintable t => t -> String
+pprint = let ?variant = Alt1 in outputF
+
+-- TODO: More documentation on how this works
 
 data Alt1 = Alt1
 data Alt2 = Alt2
@@ -28,6 +34,9 @@ class Alts a
 instance Alts Alt1
 instance Alts Alt2
 instance Alts Alt3
+
+-- Pretty printable types predicate (aliases the OutputF constraint)
+type PrettyPrintable t = OutputF t Alt1 
 
 --instance (OutputF (ProgUnit p) Alt1) => Show (ProgUnit p) where
 --    show p = let ?variant = Alt1 in outputF p
