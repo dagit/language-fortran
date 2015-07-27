@@ -41,22 +41,19 @@ class PrintIndSlave t v where
 class PrintIndMaster t v where
     printIndMaster :: (?variant :: v) => Int -> t -> String
 
--- Default slave behaviour
+-- | Default slave behaviour
 instance (PrintMaster t DefaultPP) => PrintSlave t DefaultPP where
     printSlave = printMaster
 instance (PrintIndMaster t DefaultPP) => PrintIndSlave t DefaultPP where
     printIndSlave = printIndMaster
 
--- Behaviours that all slaves must have, i.e., for all versions v 
-instance PPVersion v => PrintSlave Char v where
-    printSlave = show
+-- | Behaviours that all slaves must have, i.e., for all versions v 
 instance PPVersion v => PrintSlave String v where
     printSlave = id
 
 --------------------------------------------------------------------------
 
--- Printing declarations
-
+-- | Definition of the master pretty printer which, notably, is defined for all versions 'v'.
 instance PPVersion v => PrintMaster String v where
     printMaster = id
 
