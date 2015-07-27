@@ -30,6 +30,7 @@ program is transformed to:
 -}
 module Language.Fortran.PreProcess (
     pre_process
+  , pre_process_fixed_form
   , parseExpr
   ) where
 
@@ -193,9 +194,12 @@ removeTrailingWhitespace line =
     reverse $ dropWhile  (==' ') $ reverse line
 
 pre_process :: String -> String
-pre_process input = parseExpr ""
-                    $ processComments
-                    $ processOldContLines input
+pre_process input = parseExpr "" input
+
+pre_process_fixed_form input =
+    parseExpr ""
+    $ processComments
+    $ processOldContLines input
 
 go filename = do args <- getArgs
                  srcfile <- readFile filename
