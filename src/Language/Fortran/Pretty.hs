@@ -55,18 +55,12 @@ instance PPVersion v => PrintSlave Char v where
 instance PPVersion v => PrintSlave String v where
     printSlave = id
 
-instance (PPVersion v, PrintSlave a v, PrintSlave b v) => PrintSlave (a, b) v where
-     printSlave (a, b) = "(" ++ printSlave a ++ ", " ++ printSlave b ++ ")"
-
-instance (PPVersion v, PrintSlave a v) => PrintSlave [a] v where
-    printSlave xs = "[" ++ (concat $ intersperse ", " (map printSlave xs)) ++ "]" 
-
 --------------------------------------------------------------------------
 
 -- Printing declarations
 
 instance (PPVersion v, PrintSlave a v) => PrintMaster [a] v where
-    printMaster xs = "[" ++ (concat $ intersperse ", " (map printSlave xs)) ++ "]" 
+    printMaster xs = concat $ intersperse "\n" (map printSlave xs)
 
 instance (PrintSlave (Arg p) v, 
           PrintSlave (BaseType p) v,
@@ -145,7 +139,7 @@ instance (Indentor (Decl p),
           PrintSlave (DataForm p) v,
           PrintSlave (Expr p) v, 
           PrintSlave (GSpec p) v, 
-          PrintSlave (InterfaceSpec p) v, 
+          PrintSlave [InterfaceSpec p] v, 
           PrintSlave (MeasureUnitSpec p) v,
           PrintSlave (SubName p) v,
           PrintSlave (UnaryOp p) v, 
@@ -241,6 +235,9 @@ instance (PrintSlave (Arg p) v, PrintSlave (BinOp p) v, PrintSlave (Expr p) v, P
   printMaster (GName _ s)  = printSlave s
   printMaster (GOper _ op) = "operator("++printSlave op++")"
   printMaster (GAssg _)    = "assignment(=)"
+
+instance (PrintMaster (InterfaceSpec p) v) => PrintMaster [InterfaceSpec p] v where
+    printMaster xs = concat $ intersperse "\n" (map printMaster xs)
 
 instance (PrintSlave (Arg p) v, PrintSlave (Decl p) v, PrintSlave (Implicit p) v,
           PrintSlave (SubName p) v, PPVersion v) => PrintMaster (InterfaceSpec p) v where
