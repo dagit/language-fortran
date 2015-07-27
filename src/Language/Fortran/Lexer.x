@@ -119,9 +119,10 @@ tokens :-
   "{"				{ \s -> LBrace }
   "}"				{ \s -> RBrace }
   "else" @line_space "if"       { \s -> Key "elseif" }
-  @name			        { \s -> if elem (map toLower s) keywords
-                                        then Key (map toLower s)
-					else ID s  }
+  ("doubleprecision" | "double precision") { \s -> Key "double precision"}
+  @name			        { \s -> if (map toLower s) `elem` keywords
+                            then Key (map toLower s)
+                            else ID s }
   @data_edit_desc		{ \s -> DataEditDest s }
   @real_literal_constant	{ \s -> Num s }
 
@@ -167,25 +168,24 @@ data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd
 	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt | ContLineWithComment | ContLineNoNewLine
 	   deriving (Eq,Show)
 
--- all reserved keywords, names are matched against these to see
--- if they are keywords or IDs
 keywords :: [String]
 keywords = ["allocate", "allocatable","assign",
 	"assignment","automatic","backspace","block","call", "case",
 	"character","close","common","complex","contains","continue","cycle",
 	"data","deallocate","default","dimension","do",
-	"double","elemental","else","elseif","elsewhere","end", "enddo", "endif", "endfile","entry",
-	"equivalence","exit","external",
+	"elemental","else","elseif","elsewhere","end", "enddo", "endif",
+  "endfile","entry", "equivalence","exit","external",
 	"forall","format","function","goto","iolength",
 	"if","implicit","in","include","inout","integer","intent","interface",
 	"intrinsic","inquire","kind","len","logical","module",
 	"namelist","none","nullify",
 	"only","open","operator","optional","out","parameter",
-	"pause","pointer","precision","print","private","procedure",
+	"pause","pointer","print","private","procedure",
 	"program","public","pure","real","read","recursive","result",
 	"return","rewind","save","select","sequence","sometype","sqrt","stat",
 	"stop","subroutine","target","to","then","type",
 	"unit", "use","volatile","where","while","write"]
+
 
 {- old keywords, many will be removed
 keywords :: [String]

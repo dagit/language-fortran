@@ -295,6 +295,7 @@ instance (Alts v) => OutputF (Uses p) v where
 instance (OutputG (SubName p) v, Alts v) => OutputF (BaseType p) v where
   outputF (Integer _)       = "integer"
   outputF (Real    _)       = "real"
+  outputF (DoublePrecision _) = "double precision"
   outputF (Character  _)    = "character"
   outputF (Logical   _)     = "logical"
   outputF (DerivedType _ s) = "type ("++outputG s++")"

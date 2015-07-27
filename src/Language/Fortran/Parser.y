@@ -100,7 +100,7 @@ import Debug.Trace
 -- DEFAULT 		{ Key "default" }
  DIMENSION 		{ Key "dimension" }
  DO 			{ Key "do" }
--- DOUBLE 		{ Key "double" }
+ DOUBLE_PRECISION { Key "double precision" }
  ELEMENTAL 		{ Key "elemental" }
  ELSE 			{ Key "else" }
  ELSEIF 		{ Key "elseif" }
@@ -145,7 +145,6 @@ import Debug.Trace
  PARAMETER 		{ Key "parameter" }
  PAUSE 		        { Key "pause" }
  POINTER 		{ Key "pointer" }
--- PRECISION 		{ Key "precision" }
  PRINT 			{ Key "print" }
  PRIVATE 		{ Key "private" }
  PROCEDURE 		{ Key "procedure" }
@@ -426,9 +425,9 @@ type_spec
 | REAL '*' length_value                         {% getSrcSpanNull >>= (\s -> return $  (Real (), $3, NullExpr () s)) }
 | REAL                                          {% getSrcSpanNull >>= (\s -> return $  (Real (), NullExpr () s, NullExpr () s)) }
 | SOMETYPE                                      {% getSrcSpanNull >>= (\s -> return $  (SomeType (), NullExpr () s, NullExpr () s)) }
---  | DOUBLE PRECISION kind_selector                { (Double (), $3, ne s)) }
---  | DOUBLE PRECISION '*' length_value             { (Double (), $4, ne s)) }
---  | DOUBLE PRECISION                              { (Double (), ne s, ne s)) }
+| DOUBLE_PRECISION kind_selector                {% getSrcSpanNull >>= (\s -> return $  (DoublePrecision (), $2, NullExpr () s)) }
+| DOUBLE_PRECISION '*' length_value             {% getSrcSpanNull >>= (\s -> return $  (DoublePrecision (), $3, NullExpr () s)) }
+| DOUBLE_PRECISION                              {% getSrcSpanNull >>= (\s -> return $  (DoublePrecision (), NullExpr () s, NullExpr () s)) }
 | COMPLEX kind_selector                         {% getSrcSpanNull >>= (\s -> return $  (Complex (), $2, NullExpr () s)) }
 | COMPLEX '*' length_value                      {% getSrcSpanNull >>= (\s -> return $  (Complex (), $3, NullExpr () s)) }
 | COMPLEX                                       {% getSrcSpanNull >>= (\s -> return $  (Complex (),NullExpr () s, NullExpr () s)) }
@@ -1015,6 +1014,7 @@ type_cast
  | INTEGER   { "INTEGER"   }
  | LOGICAL   { "LOGICAL"   }
  | CHARACTER { "CHARACTER" }
+ | DOUBLE_PRECISION { "DOUBLE PRECISION" } 
 
 
 -- Bit of a conflict here- not entirely sure when this is needed

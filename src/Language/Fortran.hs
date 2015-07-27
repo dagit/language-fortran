@@ -126,7 +126,8 @@ data Type     p = BaseType p                    (BaseType p) [Attr p] (Expr p) (
                 | ArrayT   p [(Expr p, Expr p)] (BaseType p) [Attr p] (Expr p) (Expr p)
                   deriving (Show, Functor, Typeable, Data, Eq)
 
-data BaseType p = Integer p | Real p | Character p | SomeType p | DerivedType p (SubName p)
+data BaseType p = Integer p | Real p | DoublePrecision p | Character p
+                | SomeType p | DerivedType p (SubName p)
                 | Recursive p | Pure p | Elemental p | Logical p | Complex p
                   deriving (Show, Functor, Typeable, Data, Eq)
 

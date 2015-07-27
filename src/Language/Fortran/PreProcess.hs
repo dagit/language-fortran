@@ -143,6 +143,7 @@ processComments :: String -> String
 processComments source = unlines $ map changeComment $ lines source
 
 changeComment :: String -> String
+changeComment "" = ""
 changeComment original@(x:xs)
     | x == 'c'      = '!':xs
     | x == 'C'      = '!':xs
