@@ -47,11 +47,9 @@ instance (PrintMaster t DefaultPP) => PrintSlave t DefaultPP where
 instance (PrintIndMaster t DefaultPP) => PrintIndSlave t DefaultPP where
     printIndSlave = printIndMaster
 
--- Behaviour's that all slaves must have i.e., for all versions v 
-
+-- Behaviours that all slaves must have, i.e., for all versions v 
 instance PPVersion v => PrintSlave Char v where
     printSlave = show
-
 instance PPVersion v => PrintSlave String v where
     printSlave = id
 
@@ -59,7 +57,10 @@ instance PPVersion v => PrintSlave String v where
 
 -- Printing declarations
 
-instance (PPVersion v, PrintSlave a v) => PrintMaster [a] v where
+instance PPVersion v => PrintMaster String v where
+    printMaster = id
+
+instance (PPVersion v, PrintSlave (ProgUnit p) v) => PrintMaster [ProgUnit p] v where
     printMaster xs = concat $ intersperse "\n" (map printSlave xs)
 
 instance (PrintSlave (Arg p) v, 
