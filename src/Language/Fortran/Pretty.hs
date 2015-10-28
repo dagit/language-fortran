@@ -171,8 +171,6 @@ show_namelist ((x,xs):[]) = "/" ++ printSlave x ++ "/" ++ (concat (intersperse "
 show_namelist ((x,xs):ys) = "/" ++ printSlave x ++ "/" ++ (concat (intersperse ", " (map printSlave xs))) ++ "," ++ show_namelist ys
 show_data     ((xs,ys)) = "/" ++  printSlave xs ++ "/" ++ printSlave ys
 
--- showDV :: (Expr,Expr) -> String
-
 showDV (v, NullExpr _ _, Just n)  = (printMaster v) ++ "*" ++ show n
 showDV (v, NullExpr _ _, Nothing) = printMaster v
 showDV (v,e,Nothing)              = printMaster v++" = "++printMaster e
