@@ -112,9 +112,10 @@ tokens :-
 --   "&"				; -- ignore & anywhere
   @continuation_line_alt        { \s -> ContLineAlt }
   \n "!".* \n $white*"&"        { \s -> ContLineWithComment }
-  $white*"&"$white*\n        		{ \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
-  ($white # \r # \n)*"&"            { \s -> ContLineNoNewLine }
-  "!".*\n                        ;
+  "&"$white*\n $white*"!".* \n  { \s -> ContLineWithComment }
+  "&"$white*\n                  { \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
+  ($white # \r # \n)*"&"        { \s -> ContLineNoNewLine }
+  "!".*$                        ;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
   "}"				{ \s -> RBrace }
