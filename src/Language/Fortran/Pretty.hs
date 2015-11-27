@@ -1,7 +1,7 @@
--- 
--- Pretty.hs  - 
+--
+-- Pretty.hs  -
 -- Based on code by Martin Erwig from Parameterized Fortran
--- Fortran pretty printer 
+-- Fortran pretty printer
 
 {-# LANGUAGE ExistentialQuantification, FlexibleContexts, FlexibleInstances, UndecidableInstances, MultiParamTypeClasses, DeriveDataTypeable, QuasiQuotes, DeriveFunctor, ImplicitParams, OverlappingInstances, ConstraintKinds #-}
 
@@ -19,11 +19,11 @@ pprint = let ?variant = DefaultPP in printMaster
 data DefaultPP = DefaultPP -- Default behaviour
 
 -- | The set of all types which can be used to switch between pretty printer versions
-class PPVersion a 
+class PPVersion a
 instance PPVersion DefaultPP
 
 -- Pretty printable types predicate (aliases the PrintMaster constraint)
-type PrettyPrintable t = PrintMaster t DefaultPP 
+type PrettyPrintable t = PrintMaster t DefaultPP
 
 -- | Master print behaviour
 class PrintMaster t v where
@@ -47,7 +47,7 @@ instance (PrintMaster t DefaultPP) => PrintSlave t DefaultPP where
 instance (PrintIndMaster t DefaultPP) => PrintIndSlave t DefaultPP where
     printIndSlave = printIndMaster
 
--- | Behaviours that all slaves must have, i.e., for all versions v 
+-- | Behaviours that all slaves must have, i.e., for all versions v
 instance PPVersion v => PrintSlave String v where
     printSlave = id
 
@@ -60,11 +60,11 @@ instance PPVersion v => PrintMaster String v where
 instance (PPVersion v, PrintSlave (ProgUnit p) v) => PrintMaster [ProgUnit p] v where
     printMaster xs = concat $ intersperse "\n" (map printSlave xs)
 
-instance (PrintSlave (Arg p) v, 
+instance (PrintSlave (Arg p) v,
           PrintSlave (BaseType p) v,
           PrintSlave (Block p) v,
           PrintSlave (Decl p) v,
-          PrintSlave (Fortran p) v, 
+          PrintSlave (Fortran p) v,
           PrintSlave (Implicit p) v,
           PrintSlave (SubName p) v,
           PrintSlave (VarName p) v,
@@ -88,11 +88,11 @@ instance (PrintSlave (Arg p) v,
   printMaster (Function _ _ Nothing n a Nothing b) = "function "++(printSlave n)++printSlave a++"\n"++
                              printSlave b++
                           "\nend function "++(printSlave n)++"\n"
-  printMaster (Main _ _ n a b [])     = "program "++(printSlave n) ++ 
+  printMaster (Main _ _ n a b [])     = "program "++(printSlave n) ++
                                 (if not (isEmptyArg a) then (printSlave a) else ""++"\n") ++
                                 printSlave b ++
                                 "\nend program "++ (printSlave n) ++"\n"
-  printMaster (Main _ _ n a b ps)     = "program "++(printSlave n) ++ 
+  printMaster (Main _ _ n a b ps)     = "program "++(printSlave n) ++
                                 (if not (isEmptyArg a) then (printSlave a) else ""++"\n") ++
                                 printSlave b ++
                                 "\ncontains\n" ++
@@ -118,7 +118,7 @@ instance (PrintSlave (Arg p) v,
                           "end block data " ++ (printSlave n)++"\n"
   printMaster (Prog _ _ p)     = printSlave p
   printMaster (NullProg _ _)    = ""
-  printMaster (IncludeProg _ _ ds Nothing) = printSlave ds 
+  printMaster (IncludeProg _ _ ds Nothing) = printSlave ds
   printMaster (IncludeProg _ _ ds (Just f)) = printSlave ds ++ "\n" ++ printSlave f
 
 instance (PrintSlave (Fortran p) v, PrintSlave (Decl p) v, PrintSlave (Implicit p) v, PPVersion v) =>
@@ -127,22 +127,22 @@ instance (PrintSlave (Fortran p) v, PrintSlave (Decl p) v, PrintSlave (Implicit 
 
 
 instance (PrintSlave (Expr p) v) => PrintMaster (DataForm p) v where
-  printMaster (Data _ ds) = "data "++(concat (intersperse "\n" (map show_data ds))) 
+  printMaster (Data _ ds) = "data "++(concat (intersperse "\n" (map show_data ds)))
 
-instance (Indentor (Decl p), 
+instance (Indentor (Decl p),
           PrintSlave (Arg p) v,
           PrintSlave (ArgList p) v,
           PrintSlave (Attr p) v,
           PrintSlave (BinOp p) v,
           PrintSlave (Decl p) v,
           PrintSlave (DataForm p) v,
-          PrintSlave (Expr p) v, 
-          PrintSlave (GSpec p) v, 
+          PrintSlave (Expr p) v,
+          PrintSlave (GSpec p) v,
           PrintSlave (Implicit p) v,
-          PrintSlave (InterfaceSpec p) v, 
+          PrintSlave (InterfaceSpec p) v,
           PrintSlave (MeasureUnitSpec p) v,
           PrintSlave (SubName p) v,
-          PrintSlave (UnaryOp p) v, 
+          PrintSlave (UnaryOp p) v,
           PrintSlave (VarName p) v,
           PrintSlave (Type p) v,
            PPVersion v) => PrintMaster (Decl p) v where
@@ -155,7 +155,7 @@ instance (Indentor (Decl p),
   printMaster (AccessStmt _ p gs) = ind 1++printSlave p ++ " :: " ++ (concat . intersperse ", " . map printSlave) gs++"\n"
   printMaster (ExternalStmt _ xs)  = ind 1++"external :: " ++ (concat (intersperse "," xs)) ++ "\n"
   printMaster (Interface _ (Just g) is) = ind 1 ++ "interface " ++ printSlave g ++ printMasterInterfaceSpecs is ++ ind 1 ++ "end interface" ++ printSlave g ++ "\n"
-  printMaster (Common _ _ name exps) = ind 1++"common " ++ (case name of 
+  printMaster (Common _ _ name exps) = ind 1++"common " ++ (case name of
                                                      Just n -> "/" ++ n ++ "/ "
                                                      Nothing -> "") ++ (concat (intersperse "," (map printMaster exps))) ++ "\n"
   printMaster (Interface _ Nothing  is) = ind 1 ++ "interface " ++ printMasterInterfaceSpecs is ++ ind 1 ++ "end interface\n"
@@ -164,7 +164,7 @@ instance (Indentor (Decl p),
   printMaster (Include _ i)  = "include "++printSlave i
   printMaster (DSeq _ d d')  = printSlave d++printSlave d'
   printMaster (NullDecl _ _)    = ""
-  
+
 printMasterInterfaceSpecs xs = concat $ intersperse "\n" (map printMaster xs)
 
 show_namelist ((x,xs):[]) = "/" ++ printSlave x ++ "/" ++ (concat (intersperse ", " (map printSlave xs)))
@@ -178,8 +178,8 @@ showDV (v,e,Just n)              = (printMaster v) ++ "*" ++ show n ++ " = "++(p
 
 showDU (name,spec) = printMaster name++" = "++printMaster spec
 
-instance (PrintSlave (ArgList p) v, 
-          PrintSlave (BinOp p) v, 
+instance (PrintSlave (ArgList p) v,
+          PrintSlave (BinOp p) v,
           PrintSlave (UnaryOp p) v,
           PrintSlave (BaseType p) v,
           PrintSlave (Expr p) v,
@@ -200,8 +200,8 @@ instance (PrintSlave (ArgList p) v,
   printMaster (ArrayT _ rs bt as e               e')               = printSlave bt++" (len="++printSlave e'++"kind="++printSlave e++")"++" , dimension ("++showRanges rs++")"++printMasterList as
 
 
-instance (PrintSlave (ArgList p) v, PrintSlave (BinOp p) v, PrintSlave (Expr p) v, PrintSlave (UnaryOp p) v, 
-          PrintSlave (VarName p) v, 
+instance (PrintSlave (ArgList p) v, PrintSlave (BinOp p) v, PrintSlave (Expr p) v, PrintSlave (UnaryOp p) v,
+          PrintSlave (VarName p) v,
           PrintSlave (MeasureUnitSpec p) v, PPVersion v) => PrintMaster (Attr p) v where --new
     printMaster (Allocatable _)      = "allocatable "
     printMaster (Parameter _)        = "parameter "
@@ -258,7 +258,7 @@ instance (PrintSlave (SubName p) v, PPVersion v) => PrintMaster (BaseType p) v w
   printMaster (SomeType _)      = error "sometype not valid in output source file"
 
 -- Printing statements and expressions
--- 
+--
 instance (PrintSlave (ArgList p) v,
           PrintSlave (BinOp p) v,
           PrintSlave (Expr p) v,
@@ -290,13 +290,13 @@ instance (PrintIndMaster (Fortran p) v, PPVersion v) => PrintMaster (Fortran p) 
 
 instance (PrintSlave (ArgName p) v, PPVersion v) => PrintMaster (Arg p) v where
   printMaster (Arg _ vs _) = "("++ printSlave vs ++")"
-  
+
 instance (PrintSlave (Expr p) v, PPVersion v) => PrintMaster (ArgList p) v where
   printMaster (ArgList _ es) = "("++printSlave es++")" -- asTuple printSlave es
-  
+
 instance PPVersion v => PrintMaster (BinOp p) v where
   printMaster (Plus  _) ="+"
-  printMaster (Minus _) ="-" 
+  printMaster (Minus _) ="-"
   printMaster (Mul   _) ="*"
   printMaster (Div   _) ="/"
   printMaster (Or    _) =".or."
@@ -313,12 +313,12 @@ instance PPVersion v => PrintMaster (BinOp p) v where
 instance PPVersion v => PrintMaster (UnaryOp p) v where
   printMaster (UMinus _) = "-"
   printMaster (Not    _) = ".not."
-  
+
 instance PPVersion v => PrintMaster (VarName p) v where
-  printMaster (VarName _ v) = v  
+  printMaster (VarName _ v) = v
 
 instance (PrintSlave (VarName p) v, PrintSlave (ArgName p) v, PPVersion v) => PrintMaster (ArgName p) v where
-    printMaster (ArgName _ a)                    = a  
+    printMaster (ArgName _ a)                    = a
     printMaster (ASeq _ (NullArg _) (NullArg _)) = ""
     printMaster (ASeq _ (NullArg _)  a')         = printSlave a'
     printMaster (ASeq _ a (NullArg _))           = printSlave a
@@ -332,7 +332,7 @@ instance PPVersion v => PrintMaster (SubName p) v where
 instance PPVersion v => PrintMaster ( Implicit p) v where
   printMaster (ImplicitNone _) = "   implicit none\n"
   printMaster (ImplicitNull _) = ""
-  
+
 instance (PrintSlave (Expr p) v, PPVersion v) => PrintMaster (Spec p) v where
   printMaster (Access        _ s) = "access = " ++ printSlave s
   printMaster (Action        _ s) = "action = "++printSlave s
@@ -385,11 +385,16 @@ showForall ((s,e,e',e''):is) = s++"="++printSlave e++":"++printSlave e'++"; "++p
 
 showUse :: Uses p -> String
 showUse (UseNil _) = ""
-showUse (Use _ (n, []) us _) = ((ind 1)++"use "++n++"\n") ++ (showUse us)
-showUse (Use _ (n, renames) us _) = ((ind 1)++"use "++n++", " ++ 
+showUse (Uses _ (Use n []) us _) = ((ind 1)++"use "++n++"\n") ++ (showUse us)
+showUse (Uses _ (Use n renames) us _) = ((ind 1)++"use "++n++", " ++
                                      (concat $ intersperse ", " (map (\(a, b) -> a ++ " => " ++ b) renames)) ++
                                    "\n") ++ (showUse us)
-
+showUse (Uses _ (UseOnly n renames) us _) = ((ind 1)++"use "++n++", only: " ++
+                                     (concat $ intersperse ", " (map showOnly renames)) ++
+                                   "\n") ++ (showUse us)
+                                   where
+                                     showOnly (a, Just b) = a ++ " => " ++ b
+                                     showOnly (a, Nothing) = a
 
 isEmptyArg (Arg _ as _) = and (isEmptyArgName as)
 isEmptyArgName (ASeq _ a a') = isEmptyArgName a ++ isEmptyArgName a'
@@ -408,7 +413,7 @@ opPrec (And   _) = 1
 opPrec (RelEQ _) = 2
 opPrec (RelNE _) = 2
 opPrec (RelLT _) = 2
-opPrec (RelLE _) = 2 
+opPrec (RelLE _) = 2
 opPrec (RelGT _) = 2
 opPrec (RelGE _) = 2
 opPrec (Concat _) = 3
@@ -425,18 +430,18 @@ class Indentor t where
 instance Indentor (p ()) where
     indR t i = ind i
 
-instance (Indentor (Fortran p), 
+instance (Indentor (Fortran p),
           PrintSlave (VarName p) v,
           PrintSlave (Expr p) v,
           PrintSlave (UnaryOp p) v,
-          PrintSlave (BinOp p) v, 
+          PrintSlave (BinOp p) v,
           PrintSlave (ArgList p) v,
           PrintIndSlave (Fortran p) v,
-          PrintSlave (DataForm p) v, 
+          PrintSlave (DataForm p) v,
           PrintSlave (Fortran p) v, PrintSlave (Spec p) v, PPVersion v) => PrintIndMaster (Fortran p) v where
 
     printIndMaster i t@(Assg _ _ v e)            = (indR t i)++printSlave v++" = "++printSlave e
-    printIndMaster i t@(DoWhile _ _ e f)         = (indR t i)++"do while (" ++ printSlave e ++ ")\n" ++ 
+    printIndMaster i t@(DoWhile _ _ e f)         = (indR t i)++"do while (" ++ printSlave e ++ ")\n" ++
                                                  printIndSlave (i+1) f ++ "\n" ++ (indR t i) ++ "end do"
     printIndMaster i t@(For _ _  (VarName _ "") e e' e'' f)   = (indR t i)++"do \n"++
                                          (printIndSlave (i+1) f)++"\n"++(indR t i)++"end do"
@@ -509,7 +514,7 @@ showNQ = filter ('"'/=) . show
 
 -- Indenting
 
-ind = indent 3 
+ind = indent 3
 indent i l = take (i*l) (repeat ' ')
 
 
@@ -527,13 +532,13 @@ asDefs n = printList ["\n"++n,"\n"++n,"\n"]
 asParagraphs = printList ["\n","\n\n","\n"]
 
 -- Auxiliary functions
--- 
+--
 optTuple :: (?variant :: v, PPVersion v, PrintSlave (UnaryOp p) v, PrintMaster (Expr p) v) => [Expr p] -> String
 optTuple [] = ""
 optTuple xs = asTuple printMaster xs
 -- *optTuple xs = ""
 -- indent and showInd enable indented printing
--- 
+--
 
 showUnits :: (PPVersion v, ?variant :: v, PrintMaster (Fraction p) v) => [(MeasureUnit, Fraction p)] -> String
 showUnits units
@@ -554,8 +559,8 @@ showBounds (e1,e2) = printMaster e1++":"++printMaster e2
 showRanges :: (PPVersion v, ?variant :: v, PrintMaster (Expr p) v) => [(Expr p, Expr p)] -> String
 showRanges = asSeq showBounds
 
-showPartRefList :: (PPVersion v, ?variant :: v, PrintSlave (VarName p) v, 
+showPartRefList :: (PPVersion v, ?variant :: v, PrintSlave (VarName p) v,
                     PrintSlave (UnaryOp p) v, PrintMaster (Expr p) v) => [(VarName p,[Expr p])] -> String
 showPartRefList []           = ""
-showPartRefList ((v,es):[]) = printSlave v ++ optTuple es 
+showPartRefList ((v,es):[]) = printSlave v ++ optTuple es
 showPartRefList ((v,es):xs) = printSlave v ++ optTuple es ++ "%" ++ showPartRefList xs
