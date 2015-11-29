@@ -12,6 +12,7 @@ import Data.Char
 import Language.Fortran
 import Language.Haskell.ParseMonad
 import Debug.Trace
+import Control.Monad (replicateM_)
 
 }
 
@@ -110,11 +111,10 @@ tokens :-
   "$"				{ \s -> Dollar }
   "NULL()"			{ \s -> Key "null" }
 --   "&"				; -- ignore & anywhere
-  @continuation_line_alt        { \s -> ContLineAlt }
-  \n "!".* \n $white*"&"        { \s -> ContLineWithComment }
-  "&"$white*\n $white*"!".* \n  { \s -> ContLineWithComment }
-  "&"$white*\n                  { \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
-  ($white # \r # \n)*"&"        { \s -> ContLineNoNewLine }
+  \n "!".* \n $white*"&"        { \s -> ContLineWithComment 2 }
+  "&" $white* ("!" .*)? \n ($white*"!".* \n)+  { \s -> ContLineWithComment (length (filter (== '\n') s)) }
+  "&" $white* ("!" .*)? \n     { \s -> ContLine } -- ignore & and spaces followed by '\n' (continuation line)
+  "&"                           { \s -> ContLineNoNewLine }
   "!".*$                        ;
   "%"				{ \s -> Percent }
   "{"				{ \s -> LBrace }
@@ -166,7 +166,7 @@ data Token = Key String | LitConst Char String | OpPower | OpMul | OpDiv | OpAdd
 	   | LParen | RParen | LArrCon | RArrCon | OpEquals | RealConst String | StopParamStart
 	   | SingleQuote | StrConst String | Period | Colon | ColonColon | SemiColon
 	   | DataEditDest String | Arrow | MArrow | TrueConst | FalseConst | Dollar
-	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt | ContLineWithComment | ContLineNoNewLine
+	   | Hash | LBrace | RBrace | NewLine | TokEOF | Text String | ContLine | ContLineAlt | ContLineWithComment Int | ContLineNoNewLine
 	   deriving (Eq,Show)
 
 keywords :: [String]
@@ -221,11 +221,12 @@ lexer' = do s <- getInput
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
 	      			     	       -- turn on for useful debugging info on lexing
 	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace` return ()
+                                               (show (tok, (take 20 s), len) ++ "\n") `trace` return ()
                                                case tok of
 					          NewLine    -> lexNewline >> (return tok)
 					          ContLine   -> (discard (len - 1)) >> lexNewline >> lexer'
 					          ContLineNoNewLine  -> (discard len) >> lexer'
 					          ContLineAlt -> lexNewline >> (discard (len - 1)) >> lexer'
-					 	  ContLineWithComment -> lexNewline >> lexNewline  >> (discard (len - 2)) >> lexer'
+					 	  ContLineWithComment lines -> replicateM_ lines lexNewline  >> (discard (len - lines)) >> lexer'
                                                   _           -> (discard len) >> (return tok)
 }
