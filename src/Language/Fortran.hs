@@ -53,8 +53,8 @@ type ProgName = String
 data SubName p  = SubName p String
                  | NullSubName p
                  deriving (Show, Functor, Typeable, Data, Eq)
- 
-data VarName  p = VarName p Variable 
+
+data VarName  p = VarName p Variable
                   deriving (Show, Functor, Typeable, Data, Eq, Read)
 
 data ArgName  p = ArgName p String
@@ -74,7 +74,7 @@ data ArgList  p = ArgList p (Expr p)
 
 type Program p = [ProgUnit p]
 
-               -- Prog type   (type of result)   name      args  (result) body    use's  
+               -- Prog type   (type of result)   name      args  (result) body    use's
 data ProgUnit  p = Main      p SrcSpan                      (SubName p)  (Arg p)  (Block p) [ProgUnit p]
                 | Sub        p SrcSpan (Maybe (BaseType p)) (SubName p)  (Arg p)  (Block p)
                 | Function   p SrcSpan (Maybe (BaseType p)) (SubName p)  (Arg p)  (Maybe (VarName p)) (Block p)
@@ -85,18 +85,22 @@ data ProgUnit  p = Main      p SrcSpan                      (SubName p)  (Arg p)
                 | IncludeProg p SrcSpan (Decl p) (Maybe (Fortran p))
                 deriving (Show, Functor, Typeable, Data, Eq)
 
--- | Implicit none or no implicit 
-data Implicit p = ImplicitNone p | ImplicitNull p 
+-- | Implicit none or no implicit
+data Implicit p = ImplicitNone p | ImplicitNull p
                 deriving (Show, Functor, Typeable, Data, Eq)
 
--- | renames for "use"s 
+-- | renames for "use"s
 type Renames = [(Variable, Variable)]
 
 data UseBlock p = UseBlock (Uses p) SrcLoc deriving (Show, Functor, Typeable, Data, Eq)
 
+data Use =  Use String Renames
+          | UseOnly String [(Variable, Maybe Variable)]
+          deriving (Show, Typeable, Data, Eq)
+
 -- | (second 'p' let's you annotate the 'cons' part of the cell)
-data Uses p  = Use p (String, Renames) (Uses p) p
-                | UseNil p deriving (Show, Functor, Typeable, Data, Eq)
+data Uses p  = Uses p Use (Uses p) p
+             | UseNil p deriving (Show, Functor, Typeable, Data, Eq)
 
              --       use's     implicit  decls  stmts
 data Block    p = Block p  (UseBlock p) (Implicit p) SrcSpan (Decl p) (Fortran p)
@@ -106,7 +110,7 @@ data Decl     p = Decl           p SrcSpan [(Expr p, Expr p, Maybe Int)] (Type p
                 | Namelist       p [(Expr p, [Expr p])]                     -- namelist declaration
                 | DataDecl       p (DataForm p)
                 | Equivalence    p SrcSpan [(Expr p)]
-                | AttrStmt       p (Attr p) [(Expr p, Expr p, Maybe Int)] 
+                | AttrStmt       p (Attr p) [(Expr p, Expr p, Maybe Int)]
                 | AccessStmt     p (Attr p) [GSpec p]                       -- access stmt
                 | ExternalStmt   p [String]                                 -- external stmt
                 | Interface      p (Maybe (GSpec p)) [InterfaceSpec p]      -- interface declaration
@@ -120,7 +124,7 @@ data Decl     p = Decl           p SrcSpan [(Expr p, Expr p, Maybe Int)] (Type p
                 | MeasureUnitDef p SrcSpan [(MeasureUnit, MeasureUnitSpec p)]
                   deriving (Show, Functor, Typeable, Data, Eq)
 
-             -- BaseType  dimensions     type        Attributes   kind   len 
+             -- BaseType  dimensions     type        Attributes   kind   len
 data Type     p = BaseType p                    (BaseType p) [Attr p] (Expr p) (Expr p)
                 | ArrayT   p [(Expr p, Expr p)] (BaseType p) [Attr p] (Expr p) (Expr p)
                   deriving (Show, Functor, Typeable, Data, Eq)
@@ -133,7 +137,7 @@ data BaseType p = Integer p | Real p | DoublePrecision p | Character p
 data Attr     p = Parameter p
                 | Allocatable p
                 | External p
-                | Intent p (IntentAttr p) 
+                | Intent p (IntentAttr p)
                 | Intrinsic p
                 | Optional p
                 | Pointer p
@@ -147,7 +151,7 @@ data Attr     p = Parameter p
                 -- units-of-measure extension
                 | MeasureUnit p (MeasureUnitSpec p)
               deriving (Show, Functor, Typeable, Data, Eq)
-			  
+
 
 {- start: units-of-measure extension -}
 type MeasureUnit = String
@@ -166,20 +170,20 @@ data Fraction p = IntegerConst p String
 
 data GSpec   p = GName p (Expr p) | GOper p (BinOp p) | GAssg p
                  deriving (Show, Functor, Typeable, Data, Eq)
-			  
+
 data InterfaceSpec p = FunctionInterface   p (SubName p) (Arg p) (Uses p) (Implicit p) (Decl p)
                      | SubroutineInterface p (SubName p) (Arg p) (Uses p) (Implicit p) (Decl p)
                      | ModuleProcedure     p [(SubName p)]
                        deriving (Show, Functor, Typeable, Data, Eq)
-		
+
 data DataForm p = Data p [(Expr p, Expr p)] deriving (Show, Functor, Typeable, Data, Eq) -- data declaration
-		   
+
 data IntentAttr p = In p
                   | Out p
                   | InOut p
                     deriving (Show, Functor, Typeable, Data, Eq)
-				
-data Fortran  p = Assg p SrcSpan (Expr p) (Expr p) 
+
+data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | For  p SrcSpan (VarName p) (Expr p) (Expr p) (Expr p) (Fortran p)
                 | DoWhile  p SrcSpan (Expr p) (Fortran p)
                 | FSeq p SrcSpan (Fortran p) (Fortran p)
@@ -189,7 +193,7 @@ data Fortran  p = Assg p SrcSpan (Expr p) (Expr p)
                 | Call p SrcSpan (Expr p) (ArgList p)
                 | Open p SrcSpan [Spec p]
                 | Close p SrcSpan [Spec p]
-                | Continue p SrcSpan 
+                | Continue p SrcSpan
                 | Cycle p SrcSpan String
                 | DataStmt p SrcSpan (DataForm p)
                 | Deallocate p SrcSpan [(Expr p)] (Expr p)
@@ -224,7 +228,7 @@ data Expr  p = Con p SrcSpan String
              | Unary p SrcSpan (UnaryOp p) (Expr p)
              | CallExpr p SrcSpan (Expr p) (ArgList p)
              | NullExpr p SrcSpan
-             | Null p SrcSpan 
+             | Null p SrcSpan
              | ESeq p SrcSpan (Expr p) (Expr p)
              | Bound p SrcSpan (Expr p) (Expr p)
              | Sqrt p SrcSpan (Expr p)
@@ -262,7 +266,7 @@ data Spec     p = Access   p (Expr p)
               | ExFile     p (Expr p)
               | Exist      p (Expr p)
               | Eor        p (Expr p)
-              | File       p (Expr p)  
+              | File       p (Expr p)
               | FMT        p (Expr p)
               | Form       p (Expr p)
               | Formatted  p (Expr p)
@@ -276,20 +280,20 @@ data Spec     p = Access   p (Expr p)
               | Floating   p (Expr p) (Expr p)
               | NextRec    p (Expr p)
               | NML        p (Expr p)
-              | Opened     p (Expr p) 
+              | Opened     p (Expr p)
               | Pad        p (Expr p)
               | Position   p (Expr p)
               | Read       p (Expr p)
               | ReadWrite  p (Expr p)
-              | Rec        p (Expr p) 
-              | Recl       p (Expr p) 
+              | Rec        p (Expr p)
+              | Recl       p (Expr p)
               | Sequential p (Expr p)
               | Size       p (Expr p)
               | Status     p (Expr p)
-              | StringLit     p String 
+              | StringLit     p String
               | Unit       p (Expr p)
               | WriteSp    p (Expr p)
-              | Delimiter  p 
+              | Delimiter  p
                 deriving (Show, Functor,Typeable,Data, Eq)
 
 -- Extract span information from the source tree
@@ -343,7 +347,7 @@ instance Span (Fortran a) where
     srcSpan (Backspace x sp _)       = sp
     srcSpan (Call x sp e as)         = sp
     srcSpan (Open x sp s)            = sp
-    srcSpan (Close x sp s)           = sp 
+    srcSpan (Close x sp s)           = sp
     srcSpan (Continue x sp)          = sp
     srcSpan (Cycle x sp s)           = sp
     srcSpan (DataStmt x sp _)        = sp
@@ -356,9 +360,9 @@ instance Span (Fortran a) where
     srcSpan (Nullify x sp e)         = sp
     srcSpan (Inquire x sp s e)       = sp
     srcSpan (Pause x sp _)           = sp
-    srcSpan (Rewind x sp s)          = sp 
+    srcSpan (Rewind x sp s)          = sp
     srcSpan (Stop x sp e)            = sp
-    srcSpan (Where x sp e f _)       = sp 
+    srcSpan (Where x sp e f _)       = sp
     srcSpan (Write x sp s e)         = sp
     srcSpan (PointerAssg x sp e1 e2) = sp
     srcSpan (Return x sp e)          = sp
@@ -368,10 +372,10 @@ instance Span (Fortran a) where
     srcSpan (TextStmt x sp s)        = sp
     srcSpan (NullStmt x sp)          = sp
 
--- Extract the tag 
+-- Extract the tag
 
 class Tagged d where
-    tag :: d a -> a 
+    tag :: d a -> a
 
 instance Tagged Attr where
     tag (Parameter x)   = x
@@ -412,14 +416,14 @@ instance Tagged Implicit where
     tag (ImplicitNone x) = x
     tag (ImplicitNull x) = x
 
-instance Tagged Uses where 
-    tag (Use x _ _ _) = x
+instance Tagged Uses where
+    tag (Uses x _ _ _) = x
     tag (UseNil x) = x
 
 instance Tagged Arg where
     tag (Arg x _ _) = x
 
-instance Tagged ArgList where 
+instance Tagged ArgList where
     tag (ArgList x _) = x
 
 instance Tagged ArgName where
@@ -466,7 +470,7 @@ instance Tagged Fortran where
     tag (Backspace x sp _)      = x
     tag (Call x sp e as)        = x
     tag (Open x sp s)           = x
-    tag (Close x sp s)          = x 
+    tag (Close x sp s)          = x
     tag (Continue x sp)         = x
     tag (Cycle x sp s)          = x
     tag (DataStmt x sp _)       = x
@@ -479,9 +483,9 @@ instance Tagged Fortran where
     tag (Nullify x sp e)        = x
     tag (Inquire x sp s e)      = x
     tag (Pause x sp _)          = x
-    tag (Rewind x sp s)         = x 
+    tag (Rewind x sp s)         = x
     tag (Stop x sp e)           = x
-    tag (Where x sp e f _)      = x 
+    tag (Where x sp e f _)      = x
     tag (Write x sp s e)        = x
     tag (PointerAssg x sp e1 e2) = x
     tag (Return x sp e)         = x
