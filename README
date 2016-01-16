@@ -4,7 +4,7 @@ Language-Fortran
 
 For Debian/Ubuntu:
 
-   sudo apt-get install ghc alex happy libghc-haskell-src-dev
+   sudo apt-get install ghc alex happy libghc-haskell-src-dev libghc-parsec3-dev
 
 1. Installing
 -----------------------------------
