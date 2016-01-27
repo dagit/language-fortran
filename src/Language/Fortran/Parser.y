@@ -1622,7 +1622,7 @@ print_stmt
 format :: { Expr A0 }
 format
 : expr                                  { $1 }
---  | literal_constant                  { (Con $1) } -- label
+| STR                                   {% getSrcSpanNull >>= (\s -> return $ (Con () s $1)) } -- string literal
 | '*'                                   {% getSrcSpanNull >>= (\s -> return $ Var () s [(VarName () "*",[])]) }
 
 output_item_list :: { [Expr A0] }
@@ -1693,15 +1693,15 @@ floating_spec : DATA_DESC      {% getSrcSpanNull >>= (\s -> return $ Floating ()
 io_control_spec_id :: { Spec A0 }
 : variable                               { NoSpec () $1 }
 --| UNIT '=' format                      { Unit () $3 }
---| ID '=' format                          {% case (map (toLower) $1) of
---                                                     "fmt"     -> return (FMT () $3)
---                                                     "rec"     -> return (Rec () $3)
---                                                     "advance" -> return (Advance () $3)
---                                                     "nml"     -> return (NML () $3)
---                                                     "iostat"  -> return (IOStat () $3)
---                                                     "size"    -> return (Size () $3)
---                                                     "eor"     -> return (Eor () $3)
---                                                     s         -> parseError ("incorrect name in spec list: " ++ s) }
+| ID '=' format                          {% case (map (toLower) $1) of
+                                                     "fmt"     -> return (FMT () $3)
+                                                     "rec"     -> return (Rec () $3)
+                                                     "advance" -> return (Advance () $3)
+                                                     "nml"     -> return (NML () $3)
+                                                     "iostat"  -> return (IOStat () $3)
+                                                     "size"    -> return (Size () $3)
+                                                     "eor"     -> return (Eor () $3)
+                                                     s         -> parseError ("incorrect name in spec list: " ++ s) }
 
 --  | namelist_group_name                           { NoSpec $1 }
 
