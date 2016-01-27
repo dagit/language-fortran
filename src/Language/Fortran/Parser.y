@@ -17,7 +17,7 @@ import Language.Fortran
 import Language.Fortran.PreProcess
 
 import qualified Language.Haskell.Syntax as LH (SrcLoc(..))
-import Language.Haskell.ParseMonad 
+import Language.Haskell.ParseMonad
 import Language.Fortran.Lexer
 import Data.Char (toLower)
 import Debug.Trace
@@ -74,7 +74,7 @@ import Debug.Trace
 --'Z'                    { LitMark $$ }
 --'o'                    { LitMark $$ }
 --'O'                    { LitMark $$ }
--- OBSOLETE '!'         { Bang } 
+-- OBSOLETE '!'         { Bang }
  '%'			{ Percent }
  '$'			{ Dollar }
  -- OBSOLETE '!{'	{ StopParamStart }
@@ -137,7 +137,7 @@ import Debug.Trace
  NONE 			{ Key "none" }
  NULLIFY 		{ Key "nullify" }
  NULL 			{ Key "null" }
--- ONLY 		{ Key "only" }
+ ONLY 		{ Key "only" }
  OPEN 			{ Key "open" }
  OPERATOR 		{ Key "operator" }
  OPTIONAL 		{ Key "optional" }
@@ -187,14 +187,14 @@ import Debug.Trace
 %%
 
 include_program :: { Program A0 }
-include_program 
-: srcloc newline specification_part_top {% do { s <- getSrcSpan $1; 
+include_program
+: srcloc newline specification_part_top {% do { s <- getSrcSpan $1;
                                                 return [IncludeProg () s $3 Nothing] }}
 
 executable_program :: { Program A0 }
 executable_program
   : program_unit_list                             { $1 }
-    
+
 program_unit_list :: { Program A0 }
 program_unit_list
   : program_unit_list newline0 program_unit       { $1++[$3] }
@@ -208,21 +208,21 @@ program_unit
   | block_data                                    { $1 }
 
 plist :: { [String] }
-plist 
+plist
   : plist ',' id2                                 { $1++[$3] }
   | id2                                           { [$1] }
 
 vlist :: { [Expr A0] }
-vlist 
+vlist
   : variable ',' vlist                            { $1:$3 }
   | variable                                      { [$1] }
 
 newline :: {}
-newline : '\n' newline0 {} 
+newline : '\n' newline0 {}
 -- | ';' newline0 {}
 
 newline0 :: {}
-newline0 : newline  {} 
+newline0 : newline  {}
         | {- empty -} {}
 
 main_program :: { ProgUnit A0 }
@@ -238,7 +238,7 @@ main_program
 program_stmt :: { (SubName A0, Arg A0) }
 program_stmt
   : PROGRAM subname args_p newline   { ($2, $3) }
-  | PROGRAM subname srcloc newline   { ($2, (Arg () (NullArg ())) ($3, $3)) } 
+  | PROGRAM subname srcloc newline   { ($2, (Arg () (NullArg ())) ($3, $3)) }
 
 end_program_stmt :: { String }
 end_program_stmt
@@ -254,10 +254,10 @@ implicit_part
 external_subprogram :: { ProgUnit A0}
 external_subprogram
   : function_subprogram           { $1 }
-  | subroutine_subprogram         { $1 } 
+  | subroutine_subprogram         { $1 }
 
 subroutine_subprogram :: { ProgUnit A0 }
-subroutine_subprogram 
+subroutine_subprogram
   : srcloc subroutine_stmt srcloc use_stmt_list implicit_part srcloc specification_part_top execution_part end_subroutine_stmt newline0
   {% do { s <- getSrcSpan $1;
           s' <- getSrcSpan $6;
@@ -285,22 +285,22 @@ function_subprogram
 
 block_data :: { ProgUnit A0 }
 block_data
-  : srcloc block_data_stmt use_stmt_list implicit_part specification_part_top end_block_data_stmt     
+  : srcloc block_data_stmt use_stmt_list implicit_part specification_part_top end_block_data_stmt
                   {% do { s <- getSrcSpan $1;
                           name <- cmpNames $2 $6 "block data";
                           return (BlockData () s name $3 $4 $5); } }
-  
+
 block_data_stmt :: { SubName A0 }
 block_data_stmt
- : BLOCK DATA subname                     { $3 } 
- | BLOCK DATA                             { "foobar" `trace` NullSubName () } 
+ : BLOCK DATA subname                     { $3 }
+ | BLOCK DATA                             { "foobar" `trace` NullSubName () }
 
 end_block_data_stmt :: { String }
 end_block_data_stmt
   : END BLOCK DATA id2                     { $4 }
   | END BLOCK DATA                         { "" }
   | END                                    { "" }
-  
+
 module :: { ProgUnit A0 }
 module
    : srcloc module_stmt use_stmt_list implicit_part specification_part_top module_subprogram_part end_module_stmt newline0
@@ -310,7 +310,7 @@ module
 
 module_stmt :: { SubName A0 }
 module_stmt
-  : MODULE subname newline                    { $2 } 
+  : MODULE subname newline                    { $2 }
 
 end_module_stmt :: { String }
 end_module_stmt
@@ -321,34 +321,41 @@ end_module_stmt
 module_subprogram_part :: { Program A0 }
 module_subprogram_part
   : CONTAINS newline internal_subprogram_list { $3 }
-| {- empty -}                                 { [] } 
-  
+| {- empty -}                                 { [] }
+
 internal_subprogram_list :: { Program A0 }
 internal_subprogram_list
-  : internal_subprogram_list internal_subprogram newline0 { $1++[$2] } 
+  : internal_subprogram_list internal_subprogram newline0 { $1++[$2] }
   | {- empty -}                                           { [] }
-  
+
 internal_subprogram :: { ProgUnit A0 }
 internal_subprogram
   : subroutine_subprogram                           { $1 }
   | function_subprogram                             { $1 }
-  
+
 use_stmt_list :: { Uses A0 }
 use_stmt_list
-: use_stmt use_stmt_list  { Use () $1 $2 () }
+: use_stmt use_stmt_list  { Uses () $1 $2 () }
 | {- empty -}  	  { UseNil () }
 
-use_stmt :: { (String, Renames) }
+use_stmt :: { Use }
 use_stmt
-: USE id2 newline { ($2, []) }
-| USE COMMON ',' renames newline { ("common", $4) } -- Since "common" is a valid module name
-| USE id2 ',' renames newline { ($2, $4) }
+: USE id2 newline { (Use $2 []) }
+| USE COMMON ',' renames newline { (Use "common" $4) } -- Since "common" is a valid module name
+| USE id2 ',' renames newline { (Use $2 $4) }
+| USE COMMON ',' ONLY ':' only_list newline { (UseOnly "common" $6) } -- Since "common" is a valid module name
+| USE id2 ',' ONLY ':' only_list newline { (UseOnly $2 $6) }
+
+only_list :: { [(Variable, Maybe Variable)] }
+:  id2 '=>' id2        { [($1, Just $3)] }
+ | id2                 { [($1, Nothing)] }
+ | only_list ',' only_list { $1 ++ $3 }
 
 renames :: { [(Variable, Variable)] }
 :  id2 '=>' id2        { [($1, $3)] }
  | renames ',' renames { $1 ++ $3 }
- 
-  
+
+
 -- [DO: Allows the specification part of a module to be empty]
 specification_part_top :: { Decl A0 }
 specification_part_top
@@ -359,7 +366,7 @@ specification_part :: { Decl A0 }
 specification_part
   : declaration_construct_l specification_part { DSeq () $1 $2 }
   | declaration_construct_l                    { $1 }
-  
+
 
 declaration_construct_l :: { Decl A0 }
 declaration_construct_l
@@ -376,12 +383,12 @@ declaration_construct_p
 
 declaration_construct :: { Decl A0 }
 declaration_construct
-  : srcloc type_spec_p attr_spec_list '::' entity_decl_list  
-  {% (getSrcSpan $1) >>= (\s -> return $ if null (fst $3) 
+  : srcloc type_spec_p attr_spec_list '::' entity_decl_list
+  {% (getSrcSpan $1) >>= (\s -> return $ if null (fst $3)
 					 then Decl () s $5 ((BaseType () (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))
 			                 else Decl () s $5 ((ArrayT ()  (fst $3) (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))) }
-  | srcloc type_spec_p attr_spec_list entity_decl_list  
-  {% (getSrcSpan $1) >>= (\s -> return $ if null (fst $3) 
+  | srcloc type_spec_p attr_spec_list entity_decl_list
+  {% (getSrcSpan $1) >>= (\s -> return $ if null (fst $3)
 					     then Decl () s $4 ((BaseType () (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))
 			     	             else Decl () s $4 ((ArrayT () (fst $3) (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))) }
   | interface_block				      { $1 }
@@ -402,11 +409,11 @@ entity_decl :: { (Expr A0, Expr A0, Maybe Int) }
 entity_decl
 -- : srcloc ID '=' expr   {% getSrcSpan $1 >>= (\s -> return $ (Var () s [(VarName () $2,[])], $4, Nothing)) }
 : variable '=' expr   { ($1, $3, Nothing) }
-| variable             {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Nothing)) }  
-| variable '*' num     {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Just $ read $3)) }  
+| variable             {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Nothing)) }
+| variable '*' num     {% getSrcSpanNull >>= (\s -> return $ ($1, NullExpr () s, Just $ read $3)) }
 
--- | id2                  {% getSrcSpanNull >>= (\s -> return $ (Var () s [(VarName () $1,[])], NullExpr () s, Nothing)) }  
- 
+-- | id2                  {% getSrcSpanNull >>= (\s -> return $ (Var () s [(VarName () $1,[])], NullExpr () s, Nothing)) }
+
 
 object_name :: { String }
 object_name
@@ -432,7 +439,7 @@ type_spec
 | COMPLEX '*' length_value                      {% getSrcSpanNull >>= (\s -> return $  (Complex (), $3, NullExpr () s)) }
 | COMPLEX                                       {% getSrcSpanNull >>= (\s -> return $  (Complex (),NullExpr () s, NullExpr () s)) }
 | CHARACTER char_selector                       { (Character (), snd $2, fst $2) }
-| CHARACTER '*' length_value                    {% getSrcSpanNull >>= (\s -> return $  (Character (), $3, NullExpr () s)) } 
+| CHARACTER '*' length_value                    {% getSrcSpanNull >>= (\s -> return $  (Character (), $3, NullExpr () s)) }
 | CHARACTER                                     {% getSrcSpanNull >>= (\s -> return $  (Character (), NullExpr () s, NullExpr () s)) }
 | LOGICAL kind_selector                         {% getSrcSpanNull >>= (\s -> return $  (Logical (), $2, NullExpr () s)) }
 | LOGICAL '*' length_value                      {% getSrcSpanNull >>= (\s -> return $  (Logical (), $3, NullExpr () s)) }
@@ -440,14 +447,14 @@ type_spec
 | TYPE '(' type_name ')'                        {% getSrcSpanNull >>= (\s -> return $ (DerivedType () $3, NullExpr () s, NullExpr () s)) }
 
 --  | POINTER '(' pointer_name ',' pointee_name ['(' array_spec ')' ] ')'
---[',' '(' pointer_name ',' pointee_name ['(' array_spec ')' ] ')' ] 
+--[',' '(' pointer_name ',' pointee_name ['(' array_spec ')' ] ')' ]
 
 kind_selector :: { Expr A0 }
   : '(' KIND '=' expr ')'                         { $4 }
   | '(' expr ')'                                  { $2 }
 
 char_selector :: { (Expr A0, Expr A0) }  -- (LEN, KIND)
-char_selector 
+char_selector
 : length_selector                                         {% getSrcSpanNull >>= (\s -> return $ ($1,NullExpr () s)) }
 | '(' LEN '=' char_len_param_value ',' KIND '=' expr ')'  { ($4,$8) }
 | '(' char_len_param_value ',' KIND '=' expr ')'          { ($2,$6) }
@@ -456,7 +463,7 @@ char_selector
 | '(' KIND '=' expr ')'                                   {% getSrcSpanNull >>= (\s -> return $   (NullExpr () s,$4)) }
 
 length_selector :: { Expr A0 }
-length_selector 
+length_selector
 : '(' LEN '=' char_len_param_value ')'                    { $4 }
 | '(' char_len_param_value ')'                            { $2 }
 
@@ -555,7 +562,7 @@ signed_num :: { String }
 signed_num
 : '-' num { "-" ++ $2 }
 | num     { $1 }
- 
+
 -- end
 
 array_spec :: { [(Expr A0, Expr A0)] }
@@ -569,7 +576,7 @@ explicit_shape_spec_list
 
 explicit_shape_spec :: { Expr A0 }
 explicit_shape_spec
-  : expr  { $1 } 
+  : expr  { $1 }
   | bound { $1 }
 
 include_stmt :: { Decl A0 }
@@ -577,7 +584,7 @@ include_stmt :: { Decl A0 }
 
 specification_expr :: { Expr A0 }
 specification_expr
-  : expr { $1 } 
+  : expr { $1 }
 
 intent_spec :: { IntentAttr A0 }
 intent_spec
@@ -602,7 +609,7 @@ specification_stmt
 --  | optional_stmt          { $1 }
 --  | pointer_stmt           { $1 }
   | save_stmt              { $1 }
---  | target_stmt            { $1 } 
+--  | target_stmt            { $1 }
 
 save_stmt :: { Decl A0 }
  : SAVE { AccessStmt () (Save ()) [] }
@@ -620,42 +627,42 @@ interface_stmt :: { Maybe (GSpec A0) }
 interface_stmt
   : INTERFACE generic_spec       { Just $2 }
   | INTERFACE                    { Nothing }
-  
+
 interface_spec_list :: { [InterfaceSpec A0] }
 interface_spec_list
   : interface_spec_list interface_spec   { $1++[$2] }
   | interface_spec                       { [$1] }
-  
+
 interface_spec :: { InterfaceSpec A0 }
 interface_spec
   : interface_body               { $1 }
   | module_procedure_stmt        { $1 }
-  
+
 end_interface_stmt :: { Maybe (GSpec A0) }
 end_interface_stmt
   : END INTERFACE generic_spec       { Just $3 }
   | END INTERFACE                    { Nothing }
 
-interface_body :: { InterfaceSpec A0 } 
+interface_body :: { InterfaceSpec A0 }
 interface_body
-  : function_stmt  use_stmt_list implicit_part specification_part end_function_stmt 
+  : function_stmt  use_stmt_list implicit_part specification_part end_function_stmt
         {% do { name <- cmpNames (fst4 $1) $5 "interface declaration";
 	        return (FunctionInterface ()  name (snd4 $1) $2 $3 $4); }}
 
-  | function_stmt end_function_stmt  
+  | function_stmt end_function_stmt
         {% do { name <- cmpNames (fst4 $1) $2 "interface declaration";
 	        s <- getSrcSpanNull;
-	        return (FunctionInterface () name (snd4 $1) (UseNil ()) (ImplicitNull ()) (NullDecl () s)); } }       
+	        return (FunctionInterface () name (snd4 $1) (UseNil ()) (ImplicitNull ()) (NullDecl () s)); } }
 
   | subroutine_stmt use_stmt_list implicit_part specification_part end_subroutine_stmt
         {% do { name <- cmpNames (fst3 $1) $5 "interface declaration";
                 return (SubroutineInterface () name (snd3 $1) $2 $3 $4); } }
 
-  | subroutine_stmt end_subroutine_stmt 
+  | subroutine_stmt end_subroutine_stmt
         {% do { name <- cmpNames (fst3 $1) $2 "interface declaration";
 	        s <- getSrcSpanNull;
 	        return (SubroutineInterface () name (snd3 $1) (UseNil ()) (ImplicitNull ()) (NullDecl () s)); }}
-  
+
 module_procedure_stmt :: { InterfaceSpec A0 }
 module_procedure_stmt
 : MODULE PROCEDURE sub_name_list    { ModuleProcedure () $3 }
@@ -686,7 +693,7 @@ end_type_stmt
 
 type_name :: { SubName A0 }
 type_name
-: ID           { SubName () $1 } 
+: ID           { SubName () $1 }
 
 private_sequence_stmt :: { [Attr A0] }
 private_sequence_stmt
@@ -695,7 +702,7 @@ private_sequence_stmt
 | PRIVATE              { [Private ()] }
 | SEQUENCE             { [Sequence ()] }
 | {- empty -}          { [] }
-  
+
 component_def_stmt_list :: { [Decl A0 ] }
 component_def_stmt_list
   : component_def_stmt_list component_def_stmt     { $1++[$2] }
@@ -703,9 +710,9 @@ component_def_stmt_list
 
 component_def_stmt :: { Decl A0 }
 component_def_stmt
-  : srcloc type_spec_p component_attr_spec_list '::' entity_decl_list  
-  {% (getSrcSpan $1) >>= (\s -> return $ 
-		     if null (fst $3) 
+  : srcloc type_spec_p component_attr_spec_list '::' entity_decl_list
+  {% (getSrcSpan $1) >>= (\s -> return $
+		     if null (fst $3)
 		     then Decl () s $5 ((BaseType () (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))
 		     else Decl () s $5 ((ArrayT () (fst $3) (fst3 $2) (snd $3) (snd3 $2) (trd3 $2)))) }
 
@@ -720,40 +727,40 @@ component_attr_spec
 | dim_spec              { ($1,[]) }
 
 attr_stmt :: { Decl A0 }
-attr_stmt : attr_spec_p '(' entity_decl_list  ')'  { AttrStmt () (head $ snd $1) ($3 ++ (map (\(x, y) -> (x, y, Nothing)) (fst $1))) } 
-          | attr_spec_p   { AttrStmt () (head $ snd $1) ((map (\(x, y) -> (x, y, Nothing)) (fst $1))) } 
-| dim_spec_p  { AttrStmt () (Dimension () $1) [] } 
+attr_stmt : attr_spec_p '(' entity_decl_list  ')'  { AttrStmt () (head $ snd $1) ($3 ++ (map (\(x, y) -> (x, y, Nothing)) (fst $1))) }
+          | attr_spec_p   { AttrStmt () (head $ snd $1) ((map (\(x, y) -> (x, y, Nothing)) (fst $1))) }
+| dim_spec_p  { AttrStmt () (Dimension () $1) [] }
 
 access_stmt :: { Decl A0 }
 access_stmt
 : access_spec '::' access_id_list  { AccessStmt () $1 $3 }
 | access_spec access_id_list       { AccessStmt () $1 $2 }
 | access_spec                      { AccessStmt () $1 [] }
-   
+
 access_id_list :: { [GSpec A0] }
 access_id_list
   : access_id_list ',' access_id     { $1++[$3] }
   | access_id                        { [$1] }
 
 access_id :: { GSpec A0 }
-access_id 
+access_id
   : generic_spec                     { $1 }
-  
+
 generic_spec :: { GSpec A0 }
 generic_spec
-: srcloc ID				{% getSrcSpan $1 >>= (\s -> return $ GName () (Var () s [(VarName () $2,[])])) } 
+: srcloc ID				{% getSrcSpan $1 >>= (\s -> return $ GName () (Var () s [(VarName () $2,[])])) }
 | OPERATOR '(' defined_operator ')'   { GOper () $3 }
 | ASSIGNMENT '(' '=' ')'              { GAssg () }
-  
+
 data_stmt :: { DataForm A0 }
 data_stmt
 : DATA data_stmt_set_list		{ Data () $2 }
-  
+
 data_stmt_set_list :: { [(Expr A0, Expr A0)] }
 data_stmt_set_list
   : data_stmt_set_list ',' data_stmt_set	{ $1++[$3] }
   | data_stmt_set        		   	{ [$1] }
-  
+
 data_stmt_set :: { (Expr A0, Expr A0) }
 data_stmt_set
   : data_stmt_object_list '/' data_stmt_value_list '/'		{ ($1,$3) }
@@ -766,7 +773,7 @@ data_stmt_object_list
 data_stmt_object :: { Expr A0 }
 data_stmt_object
   : variable 			{ $1 }
-  
+
 
 data_stmt_value_list :: { Expr A0 }
 data_stmt_value_list
@@ -776,13 +783,13 @@ data_stmt_value_list
 data_stmt_value :: { Expr A0 }
 data_stmt_value
   : primaryP		                 	{ $1 }
-  
-  
+
+
 external_stmt :: { Decl A0 }
 external_stmt
 : EXTERNAL '::' name_list  { ExternalStmt () $3 }
 | EXTERNAL      name_list  { ExternalStmt () $2 }
-  
+
 name_list :: { [String] }
 name_list
   : name_list ',' id2          { $1++[$3] }
@@ -798,10 +805,10 @@ id_keywords : COMMON { "common" } -- allow common as a subname (can happen)
 	    | id_keywords_2 { $1 }
 
 id_keywords_2 :: { String }
-id_keywords_2 : IN   { "in"   } 
+id_keywords_2 : IN   { "in"   }
               | OUT  { "out"  }
               | LEN  { "len"  }
-	
+
 defined_operator :: { BinOp A0 }
 defined_operator
 --  : defined_binary_op
@@ -817,13 +824,13 @@ intrinsic_operator
   | rel_op      { $1  }
 --  | '.NOT.'     { Not () }
   | '.AND.'     { And () }
-  | '.OR.'      { Or () } 
+  | '.OR.'      { Or () }
 
 
 namelist_stmt :: { Decl A0 }
 namelist_stmt
 : NAMELIST namelist_list   { Namelist () $2 }
-  
+
 namelist_list :: { [(Expr A0, [Expr A0])] }
 namelist_list
   : namelist_list ',' '/' constant_p '/' namelist_group_object_list   { $1++[($4,$6)] }
@@ -833,26 +840,26 @@ namelist_group_object_list :: { [Expr A0] }
 namelist_group_object_list
   : namelist_group_object_list ',' constant_p    { $1++[$3] }
   | constant_p                                   { [$1] }
-  
+
 subroutine_stmt :: { (SubName A0, Arg A0, Maybe (BaseType A0)) }
 subroutine_stmt
   : SUBROUTINE subname args_p        newline { ($2,$3,Nothing) }
 | SUBROUTINE subname srcloc        newline {% (getSrcSpan $3) >>= (\s -> return $ ($2,Arg () (NullArg ()) s,Nothing)) }
   | prefix SUBROUTINE subname args_p newline { ($3,$4,Just (fst3 $1)) }
-  
+
 function_stmt :: { (SubName A0, Arg A0, Maybe (BaseType A0), Maybe (VarName A0)) }
 function_stmt
  : prefix FUNCTION subname args_p RESULT '(' id2 ')' newline { ($3,$4,Just (fst3 $1),Just (VarName () $7)) }
  | prefix FUNCTION subname args_p                    newline { ($3,$4,Just (fst3 $1),Nothing) }
  | FUNCTION subname args_p RESULT '(' id2 ')'        newline { ($2,$3,Nothing,Just (VarName () $6)) }
  | FUNCTION subname args_p                           newline { ($2,$3,Nothing,Nothing) }
-  
+
 subname :: { SubName A0 }
 subname
 : ID	   { SubName () $1 }
 | id_keywords { SubName () $1 }
 
-  
+
 prefix :: { (BaseType A0, Expr A0, Expr A0) }
 prefix
   : type_spec  { $1 }
@@ -869,7 +876,7 @@ dummy_arg_list
 : dummy_arg_list2        { Arg () $1 }
 | {- empty -}            { Arg () (NullArg ()) }
 
-dummy_arg_list2 :: { ArgName A0 } 
+dummy_arg_list2 :: { ArgName A0 }
 dummy_arg_list2
 : dummy_arg_list2 ',' dummy_arg   { ASeq () $1 $3 }
 | dummy_arg                       { $1 }
@@ -878,7 +885,7 @@ dummy_arg :: { ArgName A0 }
 dummy_arg
 : ID                     { ArgName () $1 }
 | '*'                    { ArgName () "*" }
-  
+
 assignment_stmt :: { Fortran A0 }
 assignment_stmt
 : variable '=' expr                                  { Assg () (spanTrans $1 $3) $1 $3 }
@@ -903,10 +910,10 @@ scalar_variable_name
 : ID '(' section_subscript_list ')' { (VarName () $1, $3) }
 | ID '(' ')'                        {% getSrcSpanNull >>= (\s -> return $ (VarName () $1, [NullExpr () s])) }
 | ID                                { (VarName () $1, []) }
-| id_keywords_2          {% getSrcSpanNull >>= (\s -> return $ (VarName () $1, [NullExpr () s])) }   
+| id_keywords_2          {% getSrcSpanNull >>= (\s -> return $ (VarName () $1, [NullExpr () s])) }
 
 -- | TYPE                           { (VarName () "type", []) } -- a bit of a hack but 'type' allowed as var name
---                                                              --  but causes REDUCE REDUCE conflicts! 
+--                                                              --  but causes REDUCE REDUCE conflicts!
 
 -- bound comes through int_expr
 subscript :: { Expr A0 }
@@ -925,7 +932,7 @@ section_subscript_list :: { [Expr A0] }
 section_subscript_list
   : section_subscript_list ',' section_subscript  { $1++[$3] }
   | section_subscript                             { [$1] }
-  
+
 section_subscript :: { Expr A0 }
 section_subscript
 : subscript                             { $1 }
@@ -957,64 +964,64 @@ and_operand
 : level_4_expr                                       { $1 }
 
 level_4_expr :: { Expr A0 }
-level_4_expr 
+level_4_expr
 : level_4_expr rel_op level_3_expr                   { Bin () (spanTrans $1 $3) $2 $1 $3 }
 | level_3_expr                                       { $1 }
 
 
 level_3_expr :: { Expr A0 }
-level_3_expr 
+level_3_expr
 : level_3_expr '//' level_2_expr                     { Bin () (spanTrans $1 $3) (Concat ()) $1 $3 }
 | level_2_expr                                       { $1 }
 
 level_2_expr :: { Expr A0 }
-level_2_expr 
+level_2_expr
 : level_2_expr '+' add_operand                       { Bin () (spanTrans $1 $3) (Plus ()) $1 $3  }
 | level_2_expr '-' add_operand                       { Bin () (spanTrans $1 $3) (Minus ()) $1 $3 }
 | add_operand                                        { $1 }
 
 add_operand :: { Expr A0 }
-add_operand 
+add_operand
 : add_operand '*' mult_operand                       { Bin () (spanTrans $1 $3) (Mul ()) $1 $3 }
 | add_operand '/' mult_operand                       { Bin () (spanTrans $1 $3) (Div ()) $1 $3 }
 | mult_operand                                       { $1 }
 
 mult_operand :: { Expr A0 }
-mult_operand 
+mult_operand
 : level_1_expr '**' mult_operand                     { Bin () (spanTrans $1 $3) (Power ()) $1 $3 }
 | level_1_expr                                       { $1 }
 
 level_1_expr :: { Expr A0 }
-level_1_expr 
+level_1_expr
 : srcloc '-' primary               {% getSrcSpan $1 >>= (\s -> return $ Unary () s (UMinus ()) $3) }
 | srcloc '.NOT.' primary            {% getSrcSpan $1 >>= (\s -> return $ Unary () s (Not ()) $3) }
 | primary                          { $1 }
 
 primaryP :: { Expr A0 }
-primaryP :  
+primaryP :
    srcloc num '*' primary   {% getSrcSpan $1 >>= (\s -> return $ Bin () s (Mul ()) (Con () s $2) $4) }
 |  srcloc '-' primary               {% getSrcSpan $1 >>= (\s -> return $ Unary () s (UMinus ()) $3) }
 |  primary                  { $1 }
 
 
 primary :: { Expr A0 }
-primary 
+primary
 : constant                         { $1 }
 | variable                         { $1 }
 | srcloc type_cast '(' expr ')'    {% getSrcSpan $1 >>= (\s -> return $ Var () s [(VarName () $2, [$4])]) }
-										  
+
 | array_constructor                { $1 }
 | '(' expr ')'                     { $2 }
 | srcloc SQRT '(' expr ')'	   {% getSrcSpan $1 >>= (\s -> return $ Sqrt () s $4) }
 
 
 type_cast :: { String }
-type_cast 
+type_cast
  : REAL      { "REAL"      } -- The following supports the type cast notioatn
  | INTEGER   { "INTEGER"   }
  | LOGICAL   { "LOGICAL"   }
  | CHARACTER { "CHARACTER" }
- | DOUBLE_PRECISION { "DOUBLE PRECISION" } 
+ | DOUBLE_PRECISION { "DOUBLE PRECISION" }
 
 
 -- Bit of a conflict here- not entirely sure when this is needed
@@ -1024,37 +1031,37 @@ fields :: { [String] }
 fields
   : fields '.' id2                              { $1++[$3] }
   | id2                                         { [$1] }
-  
+
 array_constructor :: { Expr A0 }
 array_constructor
-: srcloc '(/' expr_list '/)'           {% getSrcSpan $1 >>= (\s -> return $ ArrayCon () s $3) } 
+: srcloc '(/' expr_list '/)'           {% getSrcSpan $1 >>= (\s -> return $ ArrayCon () s $3) }
 
 expr_list :: { [Expr A0] }
 expr_list
   : expr_list ',' expr          { $1++[$3] }
   | expr                        { [$1] }
-  
+
 constant_p :: { Expr A0 }
 constant_p
   : constant_p2                        { $1 }
- 
+
 constant_p2 :: { Expr A0 }
 constant_p2
 : srcloc ID             {% getSrcSpan $1 >>= (\s -> return $ Var () s [(VarName () $2,[])]) }
-  
+
 constant :: { Expr A0 }
-constant 
+constant
   : literal_constant                             { $1 }
 
 literal_constant :: { Expr A0 }
-literal_constant 
+literal_constant
 : srcloc num                      {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
 | srcloc ZLIT                     {% (getSrcSpan $1) >>= (\s -> return $ ConL () s 'z' $2) }
 | srcloc STR			  {% (getSrcSpan $1) >>= (\s -> return $ ConS () s $2) }
 | logical_literal_constant	  { $1 }
 
 --lit_mark :: { Char }
---lit_mark 
+--lit_mark
 --: 'z' { $1 }
 --| 'Z' { $1 }
 --| 'b' { $1 }
@@ -1063,7 +1070,7 @@ literal_constant
 --| 'O'  { $1 }
 
 logical_literal_constant :: { Expr A0 }
-logical_literal_constant 
+logical_literal_constant
 : srcloc '.TRUE.'                  {% (getSrcSpan $1) >>= (\s -> return $ Con () s  ".TRUE.") }
 | srcloc '.FALSE.'                 {% (getSrcSpan $1) >>= (\s -> return $ Con () s ".FALSE.") }
 
@@ -1079,7 +1086,7 @@ int_expr :: { Expr A0 }
 int_expr
   : expr                             { $1 }
 
-do_variable :: { VarName A0 } 
+do_variable :: { VarName A0 }
 do_variable
 : ID                       { VarName () $1 }
 
@@ -1087,28 +1094,28 @@ do_construct :: { Fortran A0 }
 do_construct
   : block_do_construct              { $1 }
 
-block_do_construct :: { Fortran A0 } 
-block_do_construct                  
-: srcloc nonlabel_do_stmt newline do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $4) } 
+block_do_construct :: { Fortran A0 }
+block_do_construct
+: srcloc nonlabel_do_stmt newline do_block {% getSrcSpan $1 >>= (\s -> return $ For () s (fst4 $2) (snd4 $2) (trd4 $2) (frh4 $2) $4) }
 | srcloc DO WHILE  '(' logical_expr ')' newline do_block {% getSrcSpan $1 >>= (\s -> return $ DoWhile () s $5 $8) }
-| srcloc DO num ',' loop_control newline do_block_num 
+| srcloc DO num ',' loop_control newline do_block_num
                     {% do { (fs, n) <- return $ $7;
 			    s       <- getSrcSpan $1;
-			    if (n == $3) then 
+			    if (n == $3) then
 				return $ For () s (fst4 $5) (snd4 $5) (trd4 $5) (frh4 $5) fs
                             else parseError "DO/END DO labels don't match"
                           } }
-| srcloc DO num loop_control newline do_block_num 
+| srcloc DO num loop_control newline do_block_num
                     {% do { (fs, n) <- return $ $6;
 			    s       <- getSrcSpan $1;
-			    if (n == $3) then 
+			    if (n == $3) then
 				return $ For () s (fst4 $4) (snd4 $4) (trd4 $4) (frh4 $4) fs
                             else parseError "DO/END DO labels don't match"
                           } }
-| srcloc DO num loop_control newline do_block_cont 
+| srcloc DO num loop_control newline do_block_cont
                     {% do { (fs, n) <- return $ $6;
 			    s       <- getSrcSpan $1;
-			    if (n == $3) then 
+			    if (n == $3) then
 				return $ For () s (fst4 $4) (snd4 $4) (trd4 $4) (frh4 $4) fs
 			      else return $ NullStmt () s --  parseError $ "DO/CONTINUE labels don't match" -- NEEDS FIXING!
                           } }
@@ -1139,7 +1146,7 @@ do_block_num : line newline do_block_num { let (fs, n) = $3 in (FSeq () (spanTra
 
 
 do_block_cont :: { (Fortran A0, String) }
-do_block_cont : 
+do_block_cont :
    num CONTINUE  {% getSrcSpanNull >>= (\s -> return $ (NullStmt () s, $1)) }
 | line newline do_block_cont { let (fs, n) = $3 in (FSeq () (spanTrans $1 fs) $1 fs, n) }
 
@@ -1150,14 +1157,14 @@ line :  num executable_constructP   {% getSrcSpanNull >>= (\s -> return $ Label 
 end_do :: { }
 end_do
 : END DO {}
-| ENDDO  {} 
+| ENDDO  {}
 
 block :: { Fortran A0 }
 block
   : executable_construct_list        { $1 }
- 
+
 execution_part :: { Fortran A0 }
-execution_part 
+execution_part
   : executable_construct_list        { $1 }
 
 executable_construct_list :: { Fortran A0 }
@@ -1179,9 +1186,9 @@ executable_constructP
   | if_construct                                  { $1 }
   | action_stmt                                   { $1 }
 
- 
+
 equivalence_stmt :: { Decl A0 }
-equivalence_stmt 
+equivalence_stmt
 : srcloc EQUIVALENCE '(' vlist ')'              {% getSrcSpan $1 >>= (\s -> return $ Equivalence () s $4) }
 
 action_stmt :: { Fortran A0 }
@@ -1232,7 +1239,7 @@ call_stmt
 
 call_name :: { Expr A0 }
 call_name
-: srcloc id2                 {% (getSrcSpan $1) >>= (\s -> return $ Var () s [(VarName () $2,[])]) }  
+: srcloc id2                 {% (getSrcSpan $1) >>= (\s -> return $ Var () s [(VarName () $2,[])]) }
 
 actual_arg_spec_list :: { Expr A0 }
 actual_arg_spec_list
@@ -1261,12 +1268,12 @@ else_if_stmt
   : ELSE if_then_stmt             { $2 }
 
 if_then_stmt :: { Expr A0 }
-if_then_stmt 
+if_then_stmt
   : IF '(' logical_expr ')' THEN newline             { $3 }
- 
+
 
 else_if_then_stmt :: { Expr A0 }
-else_if_then_stmt 
+else_if_then_stmt
   : ELSEIF '(' logical_expr ')' THEN newline         { $3 }
   | ELSE IF '(' logical_expr ')' THEN newline         { $4 }
 
@@ -1278,23 +1285,23 @@ else_if_then_stmt
 
 if_construct :: { Fortran A0 }
 if_construct
-: 
+:
   -- FORTRAN 77 numerical comparison IFs
 
-  srcloc IF '(' logical_expr ')' num ',' num ',' num 
+  srcloc IF '(' logical_expr ')' num ',' num ',' num
   {% getSrcSpan $1 >>= (\s -> return $ If () s (Bin () s (RelLT ()) $4 (Con () s "0")) (Goto () s $6)
 			[(Bin () s (RelEQ ()) $4 (Con () s "0"), (Goto () s $8)),
                          (Bin () s (RelGT ()) $4 (Con () s "0"), (Goto () s $10))] Nothing) }
 
   -- Other If forms
 
-| srcloc if_then_stmt block end_if_stmt                  
+| srcloc if_then_stmt block end_if_stmt
              {% getSrcSpan $1 >>= (\s -> return $ If () s $2 $3 [] Nothing) }
 
-| srcloc if_then_stmt block else_if_list end_if_stmt 
+| srcloc if_then_stmt block else_if_list end_if_stmt
              {% getSrcSpan $1 >>= (\s -> return $ If () s $2 $3 $4 Nothing) }
 
-| srcloc if_then_stmt block else_if_list ELSE newline block end_if_stmt    
+| srcloc if_then_stmt block else_if_list ELSE newline block end_if_stmt
              {% getSrcSpan $1 >>= (\s -> return $ If () s $2 $3 $4 (Just $7)) }
 
 --| if_then_stmt block ELSE block end_if_stmt      {% getSrcSpan $1 (\s -> If s $1 $2 [] (Just $4)) }
@@ -1305,14 +1312,14 @@ if_construct
 --| if_then_stmt block END IF                             { (If $1 $2 [] Nothing) }
 --| if_then_stmt block ELSE block END IF                  { (If $1 $2 [] (Just $4)) }
 
---  : if_then_stmt block 
-----    else_if_list 
---    else_opt 
+--  : if_then_stmt block
+----    else_if_list
+--    else_opt
 --    END IF                                        { (If $1 $2 $3) }
 
 end_if_stmt  :: {}
 end_if_stmt  : END IF  { }
-             | ENDIF   { } 
+             | ENDIF   { }
 
 
 logical_expr :: { Expr A0 }
@@ -1321,10 +1328,10 @@ logical_expr
 
 allocate_stmt :: { Fortran A0 }
 allocate_stmt
-  : srcloc ALLOCATE '(' allocation_list ',' STAT '=' variable ')'  
+  : srcloc ALLOCATE '(' allocation_list ',' STAT '=' variable ')'
              {% getSrcSpan $1 >>= (\s -> return $ Allocate () s $4 $8) }
 
-  | srcloc ALLOCATE '(' allocation_list ')' 
+  | srcloc ALLOCATE '(' allocation_list ')'
             {% getSrcSpanNull >>= (\e -> getSrcSpan $1 >>= (\s -> return $ Allocate () s $4 (NullExpr () e))) }
 
 
@@ -1403,7 +1410,7 @@ close_spec :: { Spec A0 }
 close_spec
 : expr                                          { NoSpec () $1 }
 | UNIT '=' expr                                 { Unit () $3 } -- units-of-measure
-| ID '=' expr                          
+| ID '=' expr
 {% case (map (toLower) $1) of
       "iostat" -> return (IOStat () $3)
       "status" -> return (Status () $3)
@@ -1424,7 +1431,7 @@ cycle_stmt
 
 deallocate_stmt :: { Fortran A0 }
 deallocate_stmt
-: srcloc DEALLOCATE '(' allocate_object_list ',' STAT '=' variable ')' 
+: srcloc DEALLOCATE '(' allocate_object_list ',' STAT '=' variable ')'
         {% getSrcSpan $1 >>= (\s -> return $ Deallocate () s $4 $8) }
 
 | srcloc DEALLOCATE '(' allocate_object_list ')'
@@ -1441,15 +1448,15 @@ exit_stmt
 | srcloc EXIT                                        {% getSrcSpan $1 >>= (\s -> return $ Exit () s "") }
 
 forall_stmt :: { Fortran A0 }
-forall_stmt 
-: srcloc FORALL forall_header forall_assignment_stmt 
+forall_stmt
+: srcloc FORALL forall_header forall_assignment_stmt
                  {% getSrcSpan $1 >>= (\s -> return $ Forall () s $3 $4) }
 
-  | srcloc FORALL forall_header newline forall_assignment_stmt_list forall_stmt_end 
+  | srcloc FORALL forall_header newline forall_assignment_stmt_list forall_stmt_end
                  {% getSrcSpan $1 >>= (\s -> return $ Forall () s $3 $5) }
 
 forall_stmt_end :: {}
-forall_stmt_end 
+forall_stmt_end
   : END FORALL       {}
  | {- empty -}       {}
 
@@ -1475,7 +1482,7 @@ forall_assignment_stmt
 
 
 forall_assignment_stmt_list :: { Fortran A0 }
-forall_assignment_stmt_list 
+forall_assignment_stmt_list
 : forall_assignment_stmt newline forall_assignment_stmt_list { FSeq () (spanTrans $1 $3) $1 $3 }
 | forall_assignment_stmt newline                             { $1 }
 
@@ -1490,9 +1497,9 @@ if_stmt
 
 inquire_stmt :: { Fortran A0 }
 inquire_stmt
-: srcloc INQUIRE '(' inquire_spec_list ')' 
-        {% getSrcSpan $1 >>= (\s -> return $ Inquire () s $4 []) } 
-  | srcloc INQUIRE '(' IOLENGTH '=' variable ')' output_item_list 
+: srcloc INQUIRE '(' inquire_spec_list ')'
+        {% getSrcSpan $1 >>= (\s -> return $ Inquire () s $4 []) }
+  | srcloc INQUIRE '(' IOLENGTH '=' variable ')' output_item_list
 
         {% getSrcSpan $1 >>= (\s -> return $ Inquire () s [IOLength () $6] $8) }
 
@@ -1576,7 +1583,7 @@ connect_spec_list
 connect_spec :: { Spec A0 }
 connect_spec
 : expr                    { NoSpec () $1 }
-| UNIT '=' expr           { Unit () $3 } 
+| UNIT '=' expr           { Unit () $3 }
 | ID '=' expr             {% case (map (toLower) $1) of
                                           "iostat"   -> return (IOStat () $3)
                                           "file"     -> return (File () $3)
@@ -1651,15 +1658,15 @@ io_control_spec_list_d :
 
 {-
 
-| '(/' ',' io_control_spec_list '/)'     { ((Delimiter ()):$3) ++ [Delimiter ()] } 
+| '(/' ',' io_control_spec_list '/)'     { ((Delimiter ()):$3) ++ [Delimiter ()] }
 | '('      io_control_spec_list '/)'     { $2 ++ [Delimiter ()] }
-  '(/' ',' io_control_spec_list ',' '/)' { ((Delimiter ()):$3) ++ [Delimiter ()] } 
+  '(/' ',' io_control_spec_list ',' '/)' { ((Delimiter ()):$3) ++ [Delimiter ()] }
 | '('      io_control_spec_list ',' '/)' { $2 ++ [Delimiter ()] }
  -}
 
 
 io_control_spec_list_d2 :: { [Spec A0] }
-io_control_spec_list_d2 : 
+io_control_spec_list_d2 :
   io_control_spec ',' io_control_spec_list_d2  { $1 ++ $3 }
 | '/)'                                         { [Delimiter ()] }
 | io_control_spec ')'                          { $1 }
@@ -1667,13 +1674,13 @@ io_control_spec_list_d2 :
 
 
 io_control_spec_list :: { [Spec A0] }
-io_control_spec_list : 
+io_control_spec_list :
   io_control_spec ',' io_control_spec_list  { $1 ++ $3 }
 | io_control_spec                           { $1 }
 
 -- (unit, fmt = format), (rec, advance = expr), (nml, iostat, id = var), (err, end, eor = label)
 
-io_control_spec :: { [Spec A0] } 
+io_control_spec :: { [Spec A0] }
 io_control_spec
 : --format                           { [NoSpec () $1] }
   '/'                                { [Delimiter ()] }
@@ -1772,14 +1779,14 @@ stop_stmt
 stop_code :: { Expr A0 }
 stop_code
   : constant                                     { $1 }
-  
+
 
 
 where_stmt :: { Fortran A0 }
 where_stmt
-: srcloc WHERE '(' mask_expr ')' where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $6 Nothing) } 
-| srcloc WHERE '(' mask_expr ')' newline where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $7 Nothing) } 
-|  srcloc WHERE '(' mask_expr ')' newline where_assignment_stmt newline ELSEWHERE newline where_assignment_stmt 
+: srcloc WHERE '(' mask_expr ')' where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $6 Nothing) }
+| srcloc WHERE '(' mask_expr ')' newline where_assignment_stmt {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $7 Nothing) }
+|  srcloc WHERE '(' mask_expr ')' newline where_assignment_stmt newline ELSEWHERE newline where_assignment_stmt
 newline END WHERE {% getSrcSpan $1 >>= (\s -> return $ Where () s $4 $7 (Just $11)) }
 
 where_assignment_stmt :: { Fortran A0 }
@@ -1807,7 +1814,7 @@ getSrcLoc' = do (LH.SrcLoc f l c) <- getSrcLoc
 
 -- Type of annotations
 
-type A0 = () 
+type A0 = ()
 
 getSrcSpan :: SrcLoc -> P (SrcLoc, SrcLoc)
 getSrcSpan l = do l' <- getSrcLoc'
@@ -1848,7 +1855,7 @@ tokenFollows s = case alexScan ('\0',[],s) 0 of
 	            AlexToken (_,b,t) len _ -> take len s
 
 parse :: String -> Program A0
-parse p = case (runParser parser (pre_process p)) of 
+parse p = case (runParser parser (pre_process p)) of
 	    (ParseOk p)       -> p
             (ParseFailed l e) ->  error e
 
