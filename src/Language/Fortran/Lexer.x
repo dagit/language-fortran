@@ -221,7 +221,7 @@ lexer' = do s <- getInput
               AlexToken (_,b,s') len act -> do let tok = act (take len s)
 	      			     	       -- turn on for useful debugging info on lexing
 	      			     	       -- (show (tok, (take 20 s), len) ++ "\n") `trace` return ()
-                                               (show (tok, (take 20 s), len) ++ "\n") `trace` return ()
+                                               return ()
                                                case tok of
 					          NewLine    -> lexNewline >> (return tok)
 					          ContLine   -> (discard (len - 1)) >> lexNewline >> lexer'
