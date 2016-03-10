@@ -1151,8 +1151,8 @@ do_block_cont :
 | line newline do_block_cont { let (fs, n) = $3 in (FSeq () (spanTrans $1 fs) $1 fs, n) }
 
 line :: { Fortran A0 }
-line :  num executable_constructP   {% getSrcSpanNull >>= (\s -> return $ Label () s $1 $2  ) }
-          | executable_constructP  { $1 }
+line :  executable_constructP  { $1 }
+            | label executable_constructP   {% getSrcSpanNull >>= (\s -> return $ Label () s $1 $2  ) }
 
 end_do :: { }
 end_do
@@ -1687,7 +1687,7 @@ io_control_spec
 | '*'                                {% getSrcSpanNull >>= (\s -> return $ [NoSpec () (Var () s [(VarName () "*", [])])]) }
 | STR                                { [StringLit () $1] }
 | STR '/'                            { [StringLit () $1, Delimiter ()] }
-| END '=' label                      { [End () $3] }
+| END '=' labelExpr                  { [End () $3] }
 | io_control_spec_id                 { [$1] }
 | num                                {% getSrcSpanNull >>= (\s -> return $ [Number () (Con () s $1)]) }
 | floating_spec                      { [$1] }
@@ -1729,9 +1729,15 @@ input_item
 --  | '*'                                           { (Var [(VarName  () "*",[])]) }
 --  | internal_file_unit                            { $1 }
 
-label :: { Expr A0 }
+label :: { String }
 label
+: LABEL                       { $1 }
+-- | ID  ':'                   { $1 } 
+
+labelExpr :: {Expr A0}
+labelExpr
 : srcloc LABEL                       {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
+-- | srcloc ID                          {% (getSrcSpan $1) >>= (\s -> return $ Con () s $2) }
 
 num :: { String }
 num
