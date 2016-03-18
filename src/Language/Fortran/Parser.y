@@ -869,7 +869,7 @@ prefix
 
 args_p :: { Arg A0 }
 args_p
-: '(' dummy_arg_list srcloc ')' { ($2 (spanExtR ($3, $3) 1)) }
+: '(' srcloc dummy_arg_list srcloc ')' { $3 ($2, $4) }
 
 dummy_arg_list :: { SrcSpan -> Arg A0 }
 dummy_arg_list

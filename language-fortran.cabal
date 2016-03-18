@@ -1,5 +1,5 @@
 name:                language-fortran
-version:             0.5
+version:             0.5.1 
 synopsis:            Fortran lexer and parser, language support, and extensions. 
 description:         
     Lexer and parser for Fortran roughly supporting standards from
