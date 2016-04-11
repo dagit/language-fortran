@@ -30,12 +30,14 @@ program is transformed to:
 -}
 module Language.Fortran.PreProcess (
     pre_process
+  , pre_process_fixed_form
   , parseExpr
   ) where
 
 import Text.ParserCombinators.Parsec hiding (spaces)
 import System.Environment
 
+import Debug.Trace
 
 num = many1 digit
 small = lower <|> char '_'
@@ -136,9 +138,69 @@ parseExpr file input =
                           (flip setSourceColumn) 1 $ pos
             pre_parser []
 
+{-
+ - Change Fortran77 style C, c, and * comments to ! comments.
+ -}
+processComments :: String -> String
+processComments source = unlines $ map changeComment $ lines source
+
+changeComment :: String -> String
+changeComment "" = ""
+changeComment original@(x:xs)
+    | isComment original      = '!':xs
+    | otherwise     = original
+
+isComment :: String -> Bool
+isComment "" = False
+isComment (f:_)
+    | f == 'c' = True
+    | f == 'C' = True
+    | f == '*' = True
+    | otherwise = False
+
+{-
+ - Old continuation used in fixed form Fortran are specified in column 6
+ - and are in effect whenever the characeter is not ' ' or '0'. This processing
+ - stage connects those lines to the line before.
+ -
+ - If the continuation line has something else such as a label in its first
+ - 6 columns then an error is thrown.
+ -}
+processOldContLines :: String -> String
+processOldContLines source = unlines (eliminateContLines (lines source) 2)
+
+eliminateContLines :: [String] -> Integer -> [String]
+eliminateContLines [] _ = []
+eliminateContLines [x] _ = [x]
+eliminateContLines (l1:l2:rest) lineNumb
+    | length l2 <= 6 = l1:eliminateContLines (l2:rest) (lineNumb + 1)
+    | isContLine == False = l1:eliminateContLines (l2:rest) (lineNumb + 1)
+    | isComment l2 = l1:eliminateContLines (l2:rest) (lineNumb + 1)
+    | isContLine && isFirst5ColsEmpty =
+        eliminateContLines ((removeTrailingWhitespace l1 ++ (statement l2)):rest)
+                           (lineNumb + 1)
+    | otherwise = error $ "Cannot preprocess continuation at line " ++
+                          show lineNumb
+    where
+        statement = (\s -> drop 6 s)
+        newLineNumb = lineNumb + 1
+        first5Cols = take 5 l2
+        col6 = l2 !! 5
+        isContLine = col6 /= ' ' && col6 /= '0'
+        isFirst5ColsEmpty = first5Cols == "     "
+
+removeTrailingWhitespace :: String -> String
+removeTrailingWhitespace line =
+    reverse $ dropWhile  (==' ') $ reverse line
+
 pre_process :: String -> String
-pre_process = parseExpr ""
-             
+pre_process input = parseExpr "" input
+
+pre_process_fixed_form input =
+    parseExpr ""
+    $ processComments
+    $ processOldContLines input
+
 go filename = do args <- getArgs
                  srcfile <- readFile filename
                  return $ parseExpr filename srcfile
